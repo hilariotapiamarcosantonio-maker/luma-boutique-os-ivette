@@ -35,6 +35,10 @@ SPREADSHEET_ID=your-google-sheet-id
 GOOGLE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
 GOOGLE_PRIVATE_KEY=paste-private-key-from-service-account-json
 NEXT_PUBLIC_APP_URL=https://your-vercel-domain.vercel.app
+CRM_BASIC_AUTH_USER=admin
+CRM_BASIC_AUTH_PASSWORD=use-a-strong-password
 ```
 
 Do not commit `.env.local`, service account JSON files, private keys, or `.vercel`.
+
+Set `CRM_BASIC_AUTH_USER` and `CRM_BASIC_AUTH_PASSWORD` in production to avoid exposing the CRM publicly.

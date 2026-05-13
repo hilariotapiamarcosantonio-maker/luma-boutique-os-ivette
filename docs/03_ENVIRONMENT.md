@@ -8,6 +8,8 @@
 | `GOOGLE_CLIENT_EMAIL` | The email of the service account with access to the sheet | `crm-sheets-reader@project.iam.gserviceaccount.com` |
 | `GOOGLE_PRIVATE_KEY` | The private key of the service account, copied from the JSON credentials | `paste-private-key-from-service-account-json` |
 | `NEXT_PUBLIC_APP_URL` | The base URL of the application (used for absolute links) | `http://localhost:3000` |
+| `CRM_BASIC_AUTH_USER` | Optional username for basic access protection | `admin` |
+| `CRM_BASIC_AUTH_PASSWORD` | Optional password for basic access protection | `use-a-strong-password` |
 
 ## How to Set Up
 
@@ -24,6 +26,7 @@
 
 ## Security Notes
 - The `GOOGLE_PRIVATE_KEY` is sensitive and must be kept secret
+- In production, set `CRM_BASIC_AUTH_USER` and `CRM_BASIC_AUTH_PASSWORD` or enable Vercel Deployment Protection before exposing live CRM data
 - The system will fall back to mock data if credentials are missing or invalid
 - In development, you can leave the credentials empty to work with mock data
 - In production, you must provide valid credentials for the integration to work
