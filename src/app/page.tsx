@@ -1,101 +1,216 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Calendar, DollarSign, Target, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FunnelChart } from "@/components/dashboard/FunnelChart";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { brand } from "@/lib/brand";
+import { getDashboardData } from "@/lib/crm-data/get-dashboard-data";
+import { getLeads } from "@/lib/crm-data/get-leads";
+import { getProperties } from "@/lib/crm-data/get-properties";
 
-export default function Home() {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export default async function PanelPage() {
+  const [data, leads, properties] = await Promise.all([
+    getDashboardData(),
+    getLeads(),
+    getProperties(),
+  ]);
+
+  const leadById = new Map(leads.map((lead) => [lead.id, lead]));
+  const propertyById = new Map(
+    properties.map((property) => [property.id, property])
+  );
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="space-y-6">
+      <PageHeader
+        title={brand.productName}
+        subtitle="Sistema comercial inmobiliario para captar, medir y cerrar prospectos desde una infraestructura personalizada."
+      />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      <Badge
+        variant="outline"
+        className="border-crm-gold/30 bg-crm-gold/10 text-crm-gold"
+      >
+        by {brand.parentBrand} · Workspace {brand.workspaceName}
+      </Badge>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href="/leads" className="block">
+          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-crm-muted">
+                TOTAL LEADS
+              </CardTitle>
+              <Users className="h-4 w-4 text-crm-blue" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-crm-text">
+                {data.totalLeads}
+              </div>
+              <p className="mt-1 text-xs text-crm-faint">Abrir base comercial</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/visitas" className="block">
+          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-crm-muted">
+                VISITAS AGENDADAS
+              </CardTitle>
+              <Calendar className="h-4 w-4 text-crm-cyan" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-crm-text">
+                {data.visitasAgendadas}
+              </div>
+              <p className="mt-1 text-xs text-crm-faint">Abrir recorridos</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/cierres" className="block">
+          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-crm-muted">
+                CIERRES GANADOS
+              </CardTitle>
+              <Target className="h-4 w-4 text-crm-green" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-crm-text">
+                {data.cierresGanados}
+              </div>
+              <p className="mt-1 text-xs text-crm-faint">Abrir control financiero</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/cierres" className="block">
+          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-crm-muted">
+                COMISIONES
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-crm-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-crm-gold">
+                {data.comisionesAcumuladas}
+              </div>
+              <p className="mt-1 text-xs text-crm-faint">Ver cierres asociados</p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="border-crm-line bg-crm-surface">
+          <CardHeader>
+            <CardTitle className="text-base text-crm-text">
+              Embudo de Ventas Inmobiliario
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <FunnelChart data={data.funnelData} />
+          </CardContent>
+        </Card>
+
+        <Card className="border-crm-line bg-crm-surface">
+          <CardHeader>
+            <CardTitle className="text-base text-crm-text">
+              Próximas Visitas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-y border-crm-line bg-crm-surface2 text-xs uppercase text-crm-muted">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Fecha</th>
+                    <th className="px-4 py-3 font-medium">Cliente</th>
+                    <th className="px-4 py-3 font-medium">Propiedad</th>
+                    <th className="px-4 py-3 text-right font-medium">Estatus</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-crm-line">
+                  {data.upcomingVisits.map((visit) => {
+                    const lead = leadById.get(visit.leadId);
+                    const property = propertyById.get(visit.propId);
+                    const leadName = lead?.name || visit.leadId;
+                    const propertyName =
+                      property?.ref || visit.propId;
+
+                    return (
+                      <tr
+                        key={visit.id}
+                        className="transition-colors hover:bg-crm-bg2"
+                      >
+                        <td className="px-4 py-3 text-crm-faint">
+                          {visit.date}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-crm-text">
+                          {lead ? (
+                            <Link
+                              href={`/leads/${lead.id}`}
+                              className="hover:text-crm-gold"
+                            >
+                              {leadName}
+                            </Link>
+                          ) : (
+                            leadName
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-crm-gold">
+                          {property ? (
+                            <Link
+                              href={`/propiedades/${property.id}`}
+                              className="hover:underline"
+                            >
+                              {propertyName}
+                            </Link>
+                          ) : (
+                            propertyName
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Badge
+                            variant="outline"
+                            className={
+                              visit.status === "Confirmada" ||
+                              visit.status === "Completada"
+                                ? "border-crm-green text-crm-green"
+                                : visit.status === "Agendada"
+                                  ? "border-crm-blue text-crm-blue"
+                                  : "border-crm-amber text-crm-amber"
+                            }
+                          >
+                            {visit.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {data.upcomingVisits.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-8 text-center text-crm-faint"
+                      >
+                        No hay visitas recientes.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

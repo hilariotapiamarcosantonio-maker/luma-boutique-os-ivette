@@ -26,7 +26,16 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env.*
+!.env.example
 .env*.local
+
+# local Google credentials
+*credentials*.json
+*service-account*.json
+google-service-account*.json
+google-credentials*.json
 
 # vercel
 .vercel
