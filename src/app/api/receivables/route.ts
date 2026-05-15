@@ -12,7 +12,11 @@ export async function PUT(request: Request) {
       );
     }
 
-    const result = await updateReceivableAbono(data.cxc_id, Number(data.abono));
+    const result = await updateReceivableAbono(
+      data.cxc_id,
+      Number(data.abono),
+      data.ciclo_pago === "mensual" ? "mensual" : "quincenal"
+    );
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {

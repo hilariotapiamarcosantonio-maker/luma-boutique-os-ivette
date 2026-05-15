@@ -42,6 +42,43 @@ function parseNumber(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function normalizeKey(key: string) {
+  return key
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+function readValue(
+  row: Record<string, string | number>,
+  aliases: string[]
+): string | number {
+  for (const alias of aliases) {
+    const direct = row[alias];
+    if (direct !== undefined && String(direct).trim() !== "") return direct;
+  }
+
+  const normalizedAliases = new Set(aliases.map(normalizeKey));
+  for (const [key, value] of Object.entries(row)) {
+    if (normalizedAliases.has(normalizeKey(key)) && String(value).trim() !== "") {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function readString(row: Record<string, string | number>, aliases: string[]) {
+  return String(readValue(row, aliases) || "");
+}
+
+function readNumber(row: Record<string, string | number>, aliases: string[]) {
+  return parseNumber(readValue(row, aliases));
+}
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -91,9 +128,17 @@ function matrixToObjects(values: (string | number)[][]): RawTable {
   return rows
     .filter((row) => row.some((cell) => String(cell ?? "").trim()))
     .map((row) =>
-      Object.fromEntries(
-        headers.map((header, index) => [String(header), row[index] ?? ""])
-      )
+      headers.reduce<Record<string, string | number>>((acc, header, index) => {
+        const key = String(header);
+        const value = row[index] ?? "";
+        const current = acc[key];
+
+        if (current === undefined || String(current).trim() === "") {
+          acc[key] = value;
+        }
+
+        return acc;
+      }, {})
     );
 }
 
@@ -115,7 +160,7 @@ async function readSheetRange(sheetName: string): Promise<RawTable | null> {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!A1:Z1000`,
+      range: `${sheetName}!A1:AZ1000`,
       valueRenderOption: "UNFORMATTED_VALUE",
     });
     return matrixToObjects((response.data.values || []) as (string | number)[][]);
@@ -143,32 +188,60 @@ async function readTable(sheetName: string) {
 }
 
 function mapSale(row: Record<string, string | number>): CapilarSale {
+  const nombre = readString(row, ["nombre", "Nombre"]);
+  const apellido = readString(row, ["apellido", "Apellido"]);
+  const nombreCliente =
+    readString(row, ["nombre_cliente", "Nombre_Cliente", "Cliente"]) ||
+    [nombre, apellido].filter(Boolean).join(" ");
+  const producto = readString(row, [
+    "producto",
+    "Producto",
+    "linea_vendida",
+    "Linea_Vendida",
+    "Línea_Vendida",
+  ]);
+  const fechaProximoPago = readString(row, [
+    "fecha_proximo_pago",
+    "Fecha_Proximo_Pago",
+    "fecha_cobro",
+    "Fecha_Cobro",
+  ]);
+
   return {
-    ventaId: String(row.venta_id || ""),
-    clienteId: String(row.cliente_id || ""),
-    fechaRegistro: String(row.fecha_registro || ""),
-    fechaEntrega: String(row.fecha_entrega || ""),
-    fechaCobro: String(row.fecha_cobro || ""),
-    provincia: String(row.provincia || ""),
-    nombreCliente: String(row.nombre_cliente || ""),
-    whatsapp: String(row.whatsapp || ""),
-    direccion: String(row.direccion || ""),
-    cedula: String(row.cedula || ""),
-    lineaVendida: String(row.linea_vendida || ""),
-    familiaProducto: String(row.familia_producto || ""),
-    otrosProductos: String(row.otros_productos || ""),
-    totalVenta: parseNumber(row.total_venta),
-    pagosPendientes: String(row.pagos_pendientes || ""),
-    montoAbonado1: parseNumber(row.monto_abonado_1),
-    montoAbonado2: parseNumber(row.monto_abonado_2),
-    totalAbonado: parseNumber(row.total_abonado),
-    montoRestante: parseNumber(row.monto_restante),
-    estadoCobro: String(row.estado_cobro || ""),
-    promotor: String(row.promotor || "Sin promotor"),
-    fuenteArchivo: String(row.fuente_archivo || ""),
-    fuenteHoja: String(row.fuente_hoja || ""),
-    filaOrigen: String(row.fila_origen || ""),
-    fuentesConsolidadas: String(row.fuentes_consolidadas || ""),
+    ventaId: readString(row, ["venta_id", "Venta_ID"]),
+    clienteId: readString(row, ["cliente_id", "Cliente_ID"]),
+    fechaRegistro: readString(row, ["fecha_registro", "Fecha_Registro"]),
+    fechaVenta: readString(row, ["fecha_venta", "Fecha_Venta", "fecha_registro"]),
+    fechaEntrega: readString(row, ["fecha_entrega", "Fecha_Entrega"]),
+    fechaCobro: readString(row, ["fecha_cobro", "Fecha_Cobro"]),
+    fechaProximoPago,
+    provincia: readString(row, ["provincia", "Provincia"]),
+    nombre,
+    apellido,
+    nombreCliente,
+    whatsapp: readString(row, ["whatsapp", "WhatsApp", "telefono", "Telefono"]),
+    direccion: readString(row, ["direccion", "Direccion", "Dirección"]),
+    cedula: readString(row, ["cedula", "Cedula", "Cédula"]),
+    producto,
+    lineaVendida: producto,
+    familiaProducto: readString(row, ["familia_producto", "Familia_Producto"]) || producto,
+    otrosProductos: readString(row, ["otros_productos", "Otros_Productos"]),
+    totalVenta: readNumber(row, ["total_venta", "Total_Venta", "monto", "Monto"]),
+    pagosPendientes: readString(row, ["pagos_pendientes", "Pagos_Pendientes"]),
+    cuotasPagadas: readNumber(row, ["cuotas_pagadas", "Cuotas_Pagadas"]),
+    maximoCuotas: readNumber(row, ["maximo_cuotas", "Maximo_Cuotas", "Máximo_Cuotas"]),
+    cicloPago:
+      readString(row, ["ciclo_pago", "Ciclo_Pago", "ciclo"]) || "quincenal",
+    montoAbonado1: readNumber(row, ["monto_abonado_1", "Monto_Abonado_1"]),
+    montoAbonado2: readNumber(row, ["monto_abonado_2", "Monto_Abonado_2"]),
+    totalAbonado: readNumber(row, ["total_abonado", "Total_Abonado"]),
+    montoRestante: readNumber(row, ["monto_restante", "Monto_Restante", "saldo_pendiente"]),
+    estadoCobro: readString(row, ["estado_cobro", "Estado_Cobro"]),
+    promotor: readString(row, ["promotor", "Promotor"]) || "Sin promotor",
+    fuenteArchivo: readString(row, ["fuente_archivo", "Fuente_Archivo"]),
+    fuenteHoja: readString(row, ["fuente_hoja", "Fuente_Hoja"]),
+    filaOrigen: readString(row, ["fila_origen", "Fila_Origen"]),
+    fuentesConsolidadas: readString(row, ["fuentes_consolidadas", "Fuentes_Consolidadas"]),
   };
 }
 
@@ -206,25 +279,52 @@ function mapProduct(row: Record<string, string | number>): CapilarProduct {
 }
 
 function mapReceivable(row: Record<string, string | number>): CapilarReceivable {
+  const nombre = readString(row, ["nombre", "Nombre"]);
+  const apellido = readString(row, ["apellido", "Apellido"]);
+  const nombreCliente =
+    readString(row, ["nombre_cliente", "Nombre_Cliente", "Cliente"]) ||
+    [nombre, apellido].filter(Boolean).join(" ");
+  const producto = readString(row, [
+    "producto",
+    "Producto",
+    "linea_vendida",
+    "Linea_Vendida",
+    "Línea_Vendida",
+  ]);
+  const fechaProximoPago = readString(row, [
+    "fecha_proximo_pago",
+    "Fecha_Proximo_Pago",
+    "fecha_cobro",
+    "Fecha_Cobro",
+  ]);
+
   return {
-    cxcId: String(row.cxc_id || ""),
-    ventaId: String(row.venta_id || ""),
-    clienteId: String(row.cliente_id || ""),
-    nombreCliente: String(row.nombre_cliente || ""),
-    whatsapp: String(row.whatsapp || ""),
-    provincia: String(row.provincia || ""),
-    direccion: String(row.direccion || ""),
-    lineaVendida: String(row.linea_vendida || ""),
-    fechaEntrega: String(row.fecha_entrega || ""),
-    fechaCobro: String(row.fecha_cobro || ""),
-    totalVenta: parseNumber(row.total_venta),
-    totalAbonado: parseNumber(row.total_abonado),
-    saldoPendiente: parseNumber(row.saldo_pendiente),
-    pagosPendientes: String(row.pagos_pendientes || ""),
-    estado: String(row.estado || ""),
-    promotor: String(row.promotor || "Sin promotor"),
-    diasVencido: String(row.dias_vencido || ""),
-    fuente: String(row.fuente || ""),
+    cxcId: readString(row, ["cxc_id", "CXC_ID"]),
+    ventaId: readString(row, ["venta_id", "Venta_ID"]),
+    clienteId: readString(row, ["cliente_id", "Cliente_ID"]),
+    nombre,
+    apellido,
+    nombreCliente,
+    whatsapp: readString(row, ["whatsapp", "WhatsApp", "telefono", "Telefono"]),
+    provincia: readString(row, ["provincia", "Provincia"]),
+    direccion: readString(row, ["direccion", "Direccion", "Dirección"]),
+    producto,
+    lineaVendida: producto,
+    fechaEntrega: readString(row, ["fecha_entrega", "Fecha_Entrega"]),
+    fechaCobro: readString(row, ["fecha_cobro", "Fecha_Cobro"]),
+    fechaProximoPago,
+    totalVenta: readNumber(row, ["total_venta", "Total_Venta", "monto", "Monto"]),
+    totalAbonado: readNumber(row, ["total_abonado", "Total_Abonado"]),
+    saldoPendiente: readNumber(row, ["saldo_pendiente", "Saldo_Pendiente"]),
+    pagosPendientes: readString(row, ["pagos_pendientes", "Pagos_Pendientes"]),
+    cuotasPagadas: readNumber(row, ["cuotas_pagadas", "Cuotas_Pagadas"]),
+    maximoCuotas: readNumber(row, ["maximo_cuotas", "Maximo_Cuotas", "Máximo_Cuotas"]),
+    cicloPago:
+      readString(row, ["ciclo_pago", "Ciclo_Pago", "ciclo"]) || "quincenal",
+    estado: readString(row, ["estado", "Estado"]),
+    promotor: readString(row, ["promotor", "Promotor"]) || "Sin promotor",
+    diasVencido: readString(row, ["dias_vencido", "Dias_Vencido", "Días_Vencido"]),
+    fuente: readString(row, ["fuente", "Fuente"]),
   };
 }
 
@@ -289,6 +389,8 @@ const DEFAULT_CONFIG: BusinessConfig = {
   comisionCobroPorcentaje: 0.03,
   bonoVentaContado: 200,
   metaSemanalLineas: 20,
+  comisionBasePorLinea: 450,
+  bonoMetaSemanal: 1000,
 };
 
 async function readBusinessConfig(): Promise<BusinessConfig> {
@@ -306,6 +408,8 @@ async function readBusinessConfig(): Promise<BusinessConfig> {
       comisionCobroPorcentaje: map["Comision_Cobro_Porcentaje"] ?? DEFAULT_CONFIG.comisionCobroPorcentaje,
       bonoVentaContado: map["Bono_Venta_Contado"] ?? DEFAULT_CONFIG.bonoVentaContado,
       metaSemanalLineas: map["Meta_Semanal_Lineas"] ?? DEFAULT_CONFIG.metaSemanalLineas,
+      comisionBasePorLinea: map["Comision_Base_Por_Linea"] ?? DEFAULT_CONFIG.comisionBasePorLinea,
+      bonoMetaSemanal: map["Bono_Meta_Semanal"] ?? DEFAULT_CONFIG.bonoMetaSemanal,
     };
   } catch {
     return DEFAULT_CONFIG;

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DollarSign, LayoutDashboard, Truck, Users } from "lucide-react";
+import { ClipboardList, DollarSign, LayoutDashboard, Truck, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const fieldNav = [
   { name: "Panel", href: "/", icon: LayoutDashboard },
+  { name: "Admin", href: "/admin", icon: ClipboardList },
   { name: "Promotor", href: "/promotor", icon: Users },
   { name: "Chofer", href: "/chofer", icon: Truck },
   { name: "Cobrador", href: "/cobrador", icon: DollarSign },

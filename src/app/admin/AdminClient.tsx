@@ -15,6 +15,49 @@ function inRange(dateStr: string, from: string, to: string) {
   return dateStr >= from && dateStr <= to;
 }
 
+function toDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysInput(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return toDateInput(date);
+}
+
+function saleDate(sale: CapilarSale) {
+  return sale.fechaVenta || sale.fechaRegistro || sale.fechaEntrega || "";
+}
+
+function weekKey(dateStr: string) {
+  if (!dateStr) return "sin-fecha";
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - day);
+  return toDateInput(date);
+}
+
+function calculateMetaBonus(
+  sales: CapilarSale[],
+  metaSemanal: number,
+  bonoMeta: number
+) {
+  const grouped = new Map<string, number>();
+
+  for (const sale of sales) {
+    const key = weekKey(saleDate(sale));
+    grouped.set(key, (grouped.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(grouped.values()).reduce(
+    (sum, count) => sum + (count === metaSemanal ? bonoMeta : 0),
+    0
+  );
+}
+
 const defaultRange: DateRange = { from: "2000-01-01", to: "2099-12-31" };
 
 // ── Drill-down panel ─────────────────────────────────────────────
@@ -32,14 +75,14 @@ function DrillDown({
   onClose: () => void;
 }) {
   const myRange = sales.filter((s) =>
-    inRange(s.fechaRegistro || s.fechaEntrega, range.from, range.to)
+    inRange(saleDate(s), range.from, range.to)
   );
 
   // Day breakdown
   const byDay = useMemo(() => {
     const map = new Map<string, { ventas: number; monto: number }>();
     for (const s of myRange) {
-      const key = s.fechaRegistro || s.fechaEntrega || "Sin fecha";
+      const key = saleDate(s) || "Sin fecha";
       const cur = map.get(key) ?? { ventas: 0, monto: 0 };
       cur.ventas += 1;
       cur.monto += s.totalVenta;
@@ -51,14 +94,15 @@ function DrillDown({
   }, [myRange]);
 
   const totalVenta = myRange.reduce((s, r) => s + r.totalVenta, 0);
-  const totalAbonado = myRange.reduce((s, r) => s + r.totalAbonado, 0);
-  const cashSales = myRange.filter((s) => !s.pagosPendientes || s.montoRestante <= 0);
   const devoluciones = myRange.filter((s) => s.estadoCobro?.toLowerCase().includes("devoluci")).length;
 
-  const comisionVenta = totalVenta * config.comisionVentaPorcentaje;
-  const comisionCobro = totalAbonado * config.comisionCobroPorcentaje;
-  const bonos = cashSales.length * config.bonoVentaContado;
-  const totalPagar = comisionVenta + comisionCobro + bonos;
+  const comisionBase = myRange.length * config.comisionBasePorLinea;
+  const bonoMeta = calculateMetaBonus(
+    myRange,
+    config.metaSemanalLineas,
+    config.bonoMetaSemanal
+  );
+  const totalPagar = comisionBase + bonoMeta;
 
   return (
     <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col overflow-y-auto
@@ -89,9 +133,9 @@ function DrillDown({
 
         {/* Commission cards */}
         <div className="grid grid-cols-2 gap-3">
-          <InfoCard label="Comisión Venta" value={formatDop(comisionVenta)} color="text-crm-gold" />
-          <InfoCard label="Comisión Cobro" value={formatDop(comisionCobro)} color="text-crm-green" />
-          <InfoCard label="Bonos Contado" value={formatDop(bonos)} color="text-crm-amber" />
+          <InfoCard label="Comision Base" value={formatDop(comisionBase)} color="text-crm-gold" />
+          <InfoCard label="Bono Meta" value={formatDop(bonoMeta)} color="text-crm-green" />
+          <InfoCard label="Venta Total" value={formatDop(totalVenta)} color="text-crm-amber" />
           <InfoCard label="Devoluciones" value={String(devoluciones)} color="text-red-400" />
         </div>
 
@@ -107,7 +151,7 @@ function DrillDown({
         {/* Sales volume */}
         <div className="flex gap-3">
           <StatChip icon={<TrendingUp className="h-3.5 w-3.5" />} label={`${myRange.length} ventas`} />
-          <StatChip icon={<RotateCcw className="h-3.5 w-3.5" />} label={`${cashSales.length} contado`} />
+          <StatChip icon={<RotateCcw className="h-3.5 w-3.5" />} label={`${formatDop(config.comisionBasePorLinea)} por linea`} />
         </div>
 
         {/* Daily breakdown */}
@@ -154,7 +198,7 @@ function DrillDown({
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-crm-text">{s.nombreCliente}</p>
-                  <p className="text-[10px] text-crm-faint">{s.fechaEntrega} · {s.lineaVendida}</p>
+                  <p className="text-[10px] text-crm-faint">{saleDate(s)} · {s.lineaVendida}</p>
                 </div>
                 <span className={`ml-2 text-xs font-bold ${s.montoRestante <= 0 ? "text-crm-green" : "text-crm-amber"}`}>
                   {formatDop(s.totalVenta)}
@@ -195,7 +239,7 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
   const handleRange = (r: DateRange) => startTransition(() => setRange(r));
 
   const filteredSales = useMemo(
-    () => data.sales.filter((s) => inRange(s.fechaRegistro || s.fechaEntrega, range.from, range.to)),
+    () => data.sales.filter((s) => inRange(saleDate(s), range.from, range.to)),
     [data.sales, range]
   );
 
@@ -203,15 +247,46 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
   const totalAbonado = filteredSales.reduce((s, r) => s + r.totalAbonado, 0);
   const saldoPendiente = filteredSales.reduce((s, r) => s + r.montoRestante, 0);
 
+  const timeStats = useMemo(() => {
+    const today = toDateInput(new Date());
+    const yesterday = addDaysInput(-1);
+    const tomorrow = addDaysInput(1);
+    const currentWeek = weekKey(today);
+    const month = today.slice(0, 7);
+    const year = today.slice(0, 4);
+
+    const summarize = (label: string, predicate: (date: string) => boolean) => {
+      const sales = data.sales.filter((sale) => predicate(saleDate(sale)));
+      return {
+        label,
+        ventas: sales.length,
+        total: sales.reduce((sum, sale) => sum + sale.totalVenta, 0),
+      };
+    };
+
+    return [
+      summarize("Ventas de Ayer", (date) => date === yesterday),
+      summarize("Ventas de Hoy", (date) => date === today),
+      summarize("Mañana", (date) => date === tomorrow),
+      summarize("Semana", (date) => weekKey(date) === currentWeek),
+      summarize("Mes", (date) => date.startsWith(month)),
+      summarize("Año", (date) => date.startsWith(year)),
+    ];
+  }, [data.sales]);
+
   // Group by promotor for summary
   const promotores = useMemo(() => {
-    const map = new Map<string, { ventas: number; totalVenta: number; saldo: number }>();
+    const map = new Map<
+      string,
+      { ventas: number; totalVenta: number; saldo: number; sales: CapilarSale[] }
+    >();
     for (const s of filteredSales) {
       const k = s.promotor || "Sin promotor";
-      const cur = map.get(k) ?? { ventas: 0, totalVenta: 0, saldo: 0 };
+      const cur = map.get(k) ?? { ventas: 0, totalVenta: 0, saldo: 0, sales: [] };
       cur.ventas += 1;
       cur.totalVenta += s.totalVenta;
       cur.saldo += s.montoRestante;
+      cur.sales.push(s);
       map.set(k, cur);
     }
     return Array.from(map.entries()).sort(([, a], [, b]) => b.totalVenta - a.totalVenta);
@@ -230,6 +305,27 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
           subtitle="Vista granular con drill-down por promotor. Haz clic en un promotor para el desglose."
         />
         <DateRangePicker value={range} onChange={handleRange} />
+      </div>
+
+      <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="grid min-w-[760px] grid-cols-6 gap-3 sm:min-w-0">
+          {timeStats.map((stat) => (
+            <div
+              key={stat.label}
+              className="min-w-0 rounded-xl border border-crm-line bg-crm-surface p-3"
+            >
+              <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-crm-faint">
+                {stat.label}
+              </p>
+              <p className="mt-1 text-xl font-black text-crm-text">
+                {stat.ventas}
+              </p>
+              <p className="truncate text-xs text-crm-muted">
+                {formatDop(stat.total)}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* KPI row */}
@@ -266,7 +362,13 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
               </thead>
               <tbody className="divide-y divide-crm-line">
                 {promotores.map(([name, stats]) => {
-                  const comision = stats.totalVenta * data.config.comisionVentaPorcentaje;
+                  const comision =
+                    stats.ventas * data.config.comisionBasePorLinea +
+                    calculateMetaBonus(
+                      stats.sales,
+                      data.config.metaSemanalLineas,
+                      data.config.bonoMetaSemanal
+                    );
                   return (
                     <tr
                       key={name}
@@ -323,7 +425,7 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
                   >
                     <td className="px-4 py-3 text-crm-faint">
                       {sale.ventaId}
-                      <div className="text-xs">{sale.fechaEntrega}</div>
+                      <div className="text-xs">{saleDate(sale)}</div>
                     </td>
                     <td className="px-4 py-3 text-crm-text">
                       {sale.nombreCliente}

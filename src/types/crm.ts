@@ -1,27 +1,37 @@
 // ── Business Config (Pilar 1: Motor de Comisiones) ──────────────────────────
 export interface BusinessConfig {
-  comisionVentaPorcentaje: number;  // e.g. 0.05 = 5%
+  comisionVentaPorcentaje: number;  // Legacy fallback, e.g. 0.05 = 5%
   comisionCobroPorcentaje: number;  // e.g. 0.03 = 3%
-  bonoVentaContado: number;         // Fixed bonus per cash sale
+  bonoVentaContado: number;         // Legacy fixed bonus per cash sale
   metaSemanalLineas: number;        // Weekly line target
+  comisionBasePorLinea: number;     // Fixed commission per line/product sold
+  bonoMetaSemanal: number;          // Fixed bonus when weekly target is reached
 }
 
 export interface CapilarSale {
   ventaId: string;
   clienteId: string;
   fechaRegistro: string;
+  fechaVenta: string;
   fechaEntrega: string;
   fechaCobro: string;
+  fechaProximoPago: string;
   provincia: string;
+  nombre: string;
+  apellido: string;
   nombreCliente: string;
   whatsapp: string;
   direccion: string;
   cedula: string;
+  producto: string;
   lineaVendida: string;
   familiaProducto: string;
   otrosProductos: string;
   totalVenta: number;
   pagosPendientes: string;
+  cuotasPagadas: number;
+  maximoCuotas: number;
+  cicloPago: "quincenal" | "mensual" | string;
   montoAbonado1: number;
   montoAbonado2: number;
   totalAbonado: number;
@@ -67,17 +77,24 @@ export interface CapilarReceivable {
   cxcId: string;
   ventaId: string;
   clienteId: string;
+  nombre: string;
+  apellido: string;
   nombreCliente: string;
   whatsapp: string;
   provincia: string;
   direccion: string;
+  producto: string;
   lineaVendida: string;
   fechaEntrega: string;
   fechaCobro: string;
+  fechaProximoPago: string;
   totalVenta: number;
   totalAbonado: number;
   saldoPendiente: number;
   pagosPendientes: string;
+  cuotasPagadas: number;
+  maximoCuotas: number;
+  cicloPago: "quincenal" | "mensual" | string;
   estado: string;
   promotor: string;
   diasVencido: string;
