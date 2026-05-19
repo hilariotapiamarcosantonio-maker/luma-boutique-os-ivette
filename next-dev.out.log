@@ -8,3 +8,10 @@
 
  ✓ Starting...
  ✓ Ready in 2.9s
+ ✓ Compiled /src/middleware in 306ms (72 modules)
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 9.6s (1801 modules)
+ ✓ Compiled in 2.7s (341 modules)
+ GET /cobrador 200 in 13718ms
+ GET /promotor 200 in 13859ms
+ GET /admin 200 in 14140ms
