@@ -7,9 +7,6 @@ import { brand } from "@/lib/brand";
 const pageTitles: Record<string, string> = {
   "/": "Panel",
   "/admin": "Admin",
-  "/promotor": "Promotor",
-  "/chofer": "Chofer",
-  "/cobrador": "Cobrador",
 };
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {

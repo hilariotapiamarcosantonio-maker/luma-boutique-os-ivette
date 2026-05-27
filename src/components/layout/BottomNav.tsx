@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, DollarSign, LayoutDashboard, Truck, Users } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const fieldNav = [
-  { name: "Panel", href: "/", icon: LayoutDashboard },
-  { name: "Admin", href: "/admin", icon: ClipboardList },
-  { name: "Promotor", href: "/promotor", icon: Users },
-  { name: "Chofer", href: "/chofer", icon: Truck },
-  { name: "Cobrador", href: "/cobrador", icon: DollarSign },
+  { name: "Panel", href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "Pedidos", href: "/admin/leads", icon: ClipboardList },
+  { name: "Contactos", href: "/admin/contactos", icon: Users },
 ];
 
 /** Visible only on mobile (<lg). Shown for field-role routes. */
@@ -28,7 +26,7 @@ export function BottomNav() {
                  lg:hidden"
     >
       {fieldNav.map((item) => {
-        const active = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
+        const active = item.href === "/admin/dashboard" ? pathname === "/admin/dashboard" : pathname?.startsWith(item.href);
         return (
           <Link
             key={item.name}

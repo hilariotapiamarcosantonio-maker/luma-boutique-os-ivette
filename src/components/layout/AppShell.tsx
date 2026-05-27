@@ -1,12 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { FloatingWhatsApp } from "@/components/store/FloatingWhatsApp";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isCrmRoute =
+    pathname === "/admin/dashboard" ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
+
+  // Dynamically manage the 'dark' class on <html> based on whether it is a CRM route
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (isCrmRoute) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [isCrmRoute]);
+
+  // If it's a storefront route, render without CRM Sidebar, Header, or BottomNav
+  if (!isCrmRoute) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF9] text-[#1C1917] selection:bg-[#F5F2EB] selection:text-[#8C6D30] antialiased">
+        {children}
+        <FloatingWhatsApp />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-crm-bg text-crm-text">

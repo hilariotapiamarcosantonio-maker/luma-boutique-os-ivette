@@ -1,28 +1,34 @@
 import "server-only";
-import { google } from "googleapis";
+import { google, sheets_v4 } from "googleapis";
 
-export async function getSheetsClient() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+export async function getSheetsClient(): Promise<{
+  sheets: sheets_v4.Sheets | null;
+  spreadsheetId: string | null;
+}> {
+  const spreadsheetId = process.env.IVETTE_SPREADSHEET_ID || null;
+  const clientEmail =
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.GOOGLE_SHEETS_CLIENT_EMAIL ||
+    null;
+  const privateKey = (
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.GOOGLE_SHEETS_PRIVATE_KEY ||
+    ""
+  ).replace(/\\n/g, "\n");
 
-  if (!clientEmail || !privateKey || !spreadsheetId) {
+  if (!spreadsheetId || !clientEmail || !privateKey) {
     return { sheets: null, spreadsheetId: null };
   }
 
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: clientEmail,
-        private_key: privateKey,
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+  const auth = new google.auth.JWT({
+    email: clientEmail,
+    key: privateKey,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
 
-    const sheets = google.sheets({ version: "v4", auth });
-    return { sheets, spreadsheetId };
-  } catch (error) {
-    console.error("Error inicializando cliente de Google Sheets:", error);
-    return { sheets: null, spreadsheetId: null };
-  }
+  return {
+    sheets: google.sheets({ version: "v4", auth }),
+    spreadsheetId,
+  };
 }

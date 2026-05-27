@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
-import { brand } from "@/lib/brand";
+import { UTMTracker } from "@/components/layout/UTMTracker";
+import { CartProvider } from "@/context/CartContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: `${brand.productName} | ${brand.parentBrand}`,
+  title: "Ivette Berroa | Cosmética Ancestral",
   description:
-    "Sistema comercial para rutas capilares, lineas vendidas, entregas y cuentas por cobrar.",
+    "Ivette Berroa - Cosmética Ancestral. Tienda virtual premium y rituales botánicos orgánicos.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -20,7 +24,10 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={inter.className}>
-        <AppShell>{children}</AppShell>
+        <CartProvider>
+          <UTMTracker />
+          <AppShell>{children}</AppShell>
+        </CartProvider>
       </body>
     </html>
   );

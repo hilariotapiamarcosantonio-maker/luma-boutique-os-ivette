@@ -1,18 +1,20 @@
-# Luma Route OS - DB Capilar
+# Luma Boutique OS - Ivette Berroa CRM
 
-Panel operativo Next.js para rutas capilares, lineas vendidas, promotores,
-entregas y cuentas por cobrar.
+Tienda online premium y CRM operativo privado para Ivette Berroa - Cosmetica Ancestral.
 
-Fuente principal:
+## Paginas activas
 
-- Google Sheet `Luma Route OS - DB Capilar`
-- Pestañas: `Inventario_Productos`, `Directorio_Clientes`,
-  `Ventas_y_Entregas`, `Cuentas_por_Cobrar`
+- `/` - home publica
+- `/tienda` - catalogo online
+- `/producto/[slug]` - producto individual
+- `/categoria/[slug]` - categoria de catalogo
+- `/checkout` - registro de pedido
+- `/gracias` - confirmacion post-checkout
+- `/admin/dashboard` - panel operativo
+- `/admin/leads` - pedidos, leads y planes quincenales
+- `/admin/contactos` - contactos, clientas fieles y seguimiento
+- `/admin` - ventas y saldos pendientes
 
-Rutas activas:
+## Datos privados
 
-- `/` - resumen financiero y operativo
-- `/admin` - tabla maestra de ventas y entregas
-- `/promotor` - rendimiento por promotor
-- `/chofer` - rutas y entregas por zona
-- `/cobrador` - cartera de cuentas por cobrar
+Los contactos reales no deben vivir en el repositorio ni en `public`. La fuente real del CRM es Google Sheets privado mediante `IVETTE_SPREADSHEET_ID` y credenciales de service account.

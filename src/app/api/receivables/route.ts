@@ -5,22 +5,23 @@ export async function PUT(request: Request) {
   try {
     const data = await request.json();
     
-    if (!data.cxc_id || data.abono === undefined) {
+    const planId = data.plan_id || data.cxc_id;
+
+    if (!planId || data.abono === undefined) {
       return NextResponse.json(
-        { error: "Faltan campos requeridos (cxc_id, abono)" },
+        { error: "Faltan campos requeridos (plan_id, abono)" },
         { status: 400 }
       );
     }
 
     const result = await updateReceivableAbono(
-      data.cxc_id,
-      Number(data.abono),
-      data.ciclo_pago === "mensual" ? "mensual" : "quincenal"
+      String(planId),
+      Number(data.abono)
     );
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error("Error updating receivable:", error);
+    console.error("Error updating receivable:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json(
       { error: "Error interno al actualizar el abono" },
       { status: 500 }

@@ -1,11 +1,14 @@
-# Routes
+# Paginas Activas
 
-Active routes:
+- `/` - home publica
+- `/tienda` - catalogo
+- `/producto/[slug]` - producto individual
+- `/categoria/[slug]` - categoria
+- `/checkout` - pedido online
+- `/gracias` - confirmacion
+- `/admin/dashboard` - panel operativo
+- `/admin/leads` - pedidos, leads, contactos y planes
+- `/admin/contactos` - directorio privado y seguimiento
+- `/admin` - ventas, saldos y pagos pendientes
 
-- `/` - financial and operating summary
-- `/admin` - sales, deliveries, line price, pending balance, and promotor
-- `/promotor` - promotor performance cards
-- `/chofer` - delivery route list
-- `/cobrador` - receivables collection list
-
-Legacy compatibility paths redirect internally to the active role routes.
+No hay paginas operativas para roles externos. El admin debe protegerse antes de usar datos reales en produccion.

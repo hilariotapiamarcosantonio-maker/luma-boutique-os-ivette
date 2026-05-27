@@ -19,11 +19,9 @@ export async function POST(request: Request) {
 
     const requiredFields = [
       "nombre",
-      "apellido",
       "whatsapp",
       "provincia",
       "producto",
-      "promotor",
       "total_venta",
     ];
     const missing = requiredFields.filter((field) => !data[field]);
@@ -46,25 +44,28 @@ export async function POST(request: Request) {
       venta_id: `V-${Date.now()}`,
       cliente_id: data.cliente_id || `C-${Date.now()}`,
       nombre: String(data.nombre).trim(),
-      apellido: String(data.apellido).trim(),
+      apellido: String(data.apellido || "").trim(),
       whatsapp: String(data.whatsapp).trim(),
       provincia: String(data.provincia).trim(),
       producto: String(data.producto).trim(),
-      promotor: String(data.promotor).trim(),
-      cedula: String(data.cedula || "").trim(),
+      responsable: String(data.responsable || "Marcos / Ivette").trim(),
       fecha_venta: fechaVenta,
       fecha_proximo_pago: fechaProximoPago,
       total_venta: Number(data.total_venta),
       cuotas_pagadas: 0,
       maximo_cuotas: maximoCuotas,
       ciclo_pago: cicloPago,
+      modalidad_pago:
+        cicloPago === "quincenal"
+          ? "Plan Quincenal Clienta Fiel"
+          : "Pago Completo",
     };
 
     await addSale(newSale);
 
     return NextResponse.json({ success: true, sale: newSale });
   } catch (error) {
-    console.error("Error adding sale:", error);
+    console.error("Error adding sale:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json(
       { error: "Error interno al guardar la venta" },
       { status: 500 }

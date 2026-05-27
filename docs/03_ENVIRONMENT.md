@@ -1,35 +1,27 @@
-# Environment Variables
+# Variables de Entorno
 
-## Required Variables
+## Google Sheets privado
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SPREADSHEET_ID` | The ID of the Google Sheet used as the database | `your-google-sheet-id` |
-| `GOOGLE_CLIENT_EMAIL` | The email of the service account with access to the sheet | `crm-sheets-reader@project.iam.gserviceaccount.com` |
-| `GOOGLE_PRIVATE_KEY` | The private key of the service account, copied from the JSON credentials | `paste-private-key-from-service-account-json` |
-| `NEXT_PUBLIC_APP_URL` | The base URL of the application (used for absolute links) | `http://localhost:3000` |
-| `CRM_BASIC_AUTH_USER` | Optional username for basic access protection | `admin` |
-| `CRM_BASIC_AUTH_PASSWORD` | Optional password for basic access protection | `use-a-strong-password` |
+| Variable | Uso |
+| --- | --- |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Email del service account con acceso editor al Sheet privado |
+| `GOOGLE_PRIVATE_KEY` | Private key del service account, con saltos `\n` escapados |
+| `IVETTE_SPREADSHEET_ID` | ID de `Luma Boutique OS - Ivette Berroa CRM` |
 
-## How to Set Up
+## Admin
 
-### Local Development
-1. Copy `.env.example` to `.env.local`
-2. Edit `.env.local` and fill in the values from your Google Cloud service account and Google Sheet
-3. Never commit `.env.local` to version control (it's in `.gitignore`)
+| Variable | Uso |
+| --- | --- |
+| `NEXT_PUBLIC_ADMIN_PROTECTED` | `false` para auditoria visual inicial; `true` antes de datos reales o deploy publico |
+| `CRM_BASIC_AUTH_USER` | Usuario de Basic Auth |
+| `CRM_BASIC_AUTH_PASSWORD` | Password de Basic Auth |
 
-### Production (Vercel)
-1. Go to your project settings in Vercel
-2. Navigate to Environment Variables
-3. Add the same variables (without the `.local` suffix)
-4. For `GOOGLE_PRIVATE_KEY`, paste the full private key value from the service account JSON and keep the newline formatting intact
+## Tienda
 
-## Security Notes
-- The `GOOGLE_PRIVATE_KEY` is sensitive and must be kept secret
-- In production, set `CRM_BASIC_AUTH_USER` and `CRM_BASIC_AUTH_PASSWORD` or enable Vercel Deployment Protection before exposing live CRM data
-- The system will fall back to mock data if credentials are missing or invalid
-- In development, you can leave the credentials empty to work with mock data
-- In production, you must provide valid credentials for the integration to work
+| Variable | Uso |
+| --- | --- |
+| `NEXT_PUBLIC_ACTIVE_NICHE` | `boutique` |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Numero comercial de WhatsApp |
+| `NEXT_PUBLIC_APP_URL` | URL base del sitio |
 
-## Fallback Mechanism
-The `getSheetsClient()` function in `/src/lib/google-sheets.ts` checks for the presence of all three Google-related variables. If any are missing, it returns `{ sheets: null, spreadsheetId: null }`, which causes the data layer functions to use mock data.
+No guardar `.env.local`, credenciales, CSV, XLSX ni contactos reales en Git.

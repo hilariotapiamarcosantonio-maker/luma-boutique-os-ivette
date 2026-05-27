@@ -4,23 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
-  DollarSign,
   LayoutDashboard,
-  Map,
-  Truck,
   Users,
   X,
+  Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Panel", href: "/", icon: LayoutDashboard },
-  { name: "Admin", href: "/admin", icon: ClipboardList },
-  { name: "Promotor", href: "/promotor", icon: Users },
-  { name: "Chofer", href: "/chofer", icon: Truck },
-  { name: "Cobrador", href: "/cobrador", icon: DollarSign },
-  { name: "Rutas", href: "/chofer", icon: Map },
+  { name: "Panel", href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "Pedidos", href: "/admin/leads", icon: ClipboardList },
+  { name: "Contactos", href: "/admin/contactos", icon: Users },
+  { name: "Lanzamiento 500", href: "/admin/contactos?filter=lanzamiento_500", icon: Sparkles },
+  { name: "Seguimiento WhatsApp", href: "/admin/contactos?filter=seguimiento", icon: MessageSquare },
+  { name: "Ventas y CxC", href: "/admin", icon: ClipboardList },
 ];
 
 type SidebarProps = {
@@ -35,8 +34,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="flex h-16 shrink-0 items-center border-b border-crm-line px-6">
         <div>
-          <h1 className="text-sm font-bold uppercase tracking-[0.24em] text-crm-text">
-            LUMA <span className="text-crm-gold">ROUTE OS</span>
+          <h1 className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-crm-text">
+            IVETTE BERROA <span className="text-crm-gold font-bold">BOUTIQUE OS</span>
           </h1>
           <p className="mt-1 text-[11px] font-medium text-crm-faint">
             by {brand.parentBrand}
@@ -56,7 +55,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           {navigation.map((item) => {
             const isActive =
               pathname === item.href || pathname?.startsWith(`${item.href}/`);
-            const active = item.href === "/" ? pathname === "/" : isActive;
+            const active = item.href === "/admin/dashboard" ? pathname === "/admin/dashboard" : isActive;
 
             return (
               <Link
@@ -88,11 +87,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex shrink-0 border-t border-crm-line p-4">
         <div className="flex items-center">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-crm-surface3 font-bold text-crm-gold">
-            MH
+            IB
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-crm-text">Marcos Hilario</p>
-            <p className="text-xs font-medium text-crm-faint">Admin Capilar</p>
+            <p className="text-sm font-medium text-crm-text">Ivette Berroa</p>
+            <p className="text-xs font-medium text-crm-faint">Administradora</p>
           </div>
         </div>
       </div>

@@ -1,11 +1,7 @@
-// ── Business Config (Pilar 1: Motor de Comisiones) ──────────────────────────
 export interface BusinessConfig {
-  comisionVentaPorcentaje: number;  // Legacy fallback, e.g. 0.05 = 5%
-  comisionCobroPorcentaje: number;  // e.g. 0.03 = 3%
-  bonoVentaContado: number;         // Legacy fixed bonus per cash sale
-  metaSemanalLineas: number;        // Weekly line target
-  comisionBasePorLinea: number;     // Fixed commission per line/product sold
-  bonoMetaSemanal: number;          // Fixed bonus when weekly target is reached
+  planQuincenalMaxDays: number;
+  planQuincenalInstallments: number;
+  defaultResponsible: string;
 }
 
 export interface CapilarSale {
@@ -37,7 +33,7 @@ export interface CapilarSale {
   totalAbonado: number;
   montoRestante: number;
   estadoCobro: string;
-  promotor: string;
+  responsable: string;
   fuenteArchivo: string;
   fuenteHoja: string;
   filaOrigen: string;
@@ -51,7 +47,7 @@ export interface CapilarClient {
   cedula: string;
   provincia: string;
   direccion: string;
-  promotorPrincipal: string;
+  responsablePrincipal: string;
   primeraEntrega: string;
   ultimaEntrega: string;
   ventasRegistradas: number;
@@ -96,7 +92,7 @@ export interface CapilarReceivable {
   maximoCuotas: number;
   cicloPago: "quincenal" | "mensual" | string;
   estado: string;
-  promotor: string;
+  responsable: string;
   diasVencido: string;
   fuente: string;
 }
@@ -110,8 +106,8 @@ export interface CapilarDashboardData {
   cuentasPorCobrar: number;
   lineasVendidas: number;
   byLinea: { name: string; value: number; fill: string }[];
-  byPromotor: {
-    promotor: string;
+  byResponsable: {
+    responsable: string;
     ventas: number;
     totalVenta: number;
     totalAbonado: number;

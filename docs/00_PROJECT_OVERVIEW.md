@@ -1,15 +1,7 @@
-# Project Overview
+# Luma Boutique OS - Ivette Berroa
 
-This project is the administrative dashboard for `Luma Route OS - DB Capilar`.
-It connects operating data from Google Sheets and exposes role-focused views for
-admin, promotor, chofer, and cobrador workflows.
+Sistema de tienda online y CRM privado para Ivette Berroa - Cosmetica Ancestral.
 
-Core data tabs:
+La operacion inicial es 100% online. El CRM organiza pedidos, leads, contactos, clientas fieles, seguimiento, pagos quincenales, productos e inventario basico.
 
-- `Inventario_Productos`
-- `Directorio_Clientes`
-- `Ventas_y_Entregas`
-- `Cuentas_por_Cobrar`
-
-The current dataset consolidates RD$1,255,179 in sales, 281 clients, 286 sales
-records, and 145 open receivables.
+No existen modulos de reparto, cobro externo ni promocion por terceros. Cuando el proyecto usa la palabra "ruta", se refiere a organizacion comercial interna por zona, clienta, estado de pago y proxima accion.
