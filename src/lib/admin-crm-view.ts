@@ -66,6 +66,11 @@ export interface AdminContact {
   interes: string;
   ultimaInteraccion: string;
   proximaAccion: string;
+  email?: string;
+  organizacion?: string;
+  estadoImportacion?: string;
+  contactableWhatsapp?: boolean;
+  motivoRevision?: string;
 }
 
 export interface AdminContactsResult {
@@ -150,21 +155,28 @@ export async function getAdminContactsResult(): Promise<AdminContactsResult> {
   return {
     source: contactos.source,
     contacts: contactos.rows.map((contacto) => ({
-    id: read(contacto, "id"),
-    nombre: read(contacto, "nombre"),
-    telefono: read(contacto, "telefono"),
-    telefonoNormalizado: read(contacto, "telefono_normalizado"),
-    etiqueta: read(contacto, "etiqueta"),
-    origen: read(contacto, "origen"),
-    notas: read(contacto, "notas"),
-    clientaFiel: ["true", "si", "sí", "1"].includes(
-      read(contacto, "clienta_fiel").toLowerCase()
-    ),
-    cohortes: read(contacto, "cohorte"),
-    estadoContacto: read(contacto, "estado_contacto"),
-    interes: read(contacto, "interes"),
-    ultimaInteraccion: read(contacto, "ultima_interaccion"),
-    proximaAccion: read(contacto, "proxima_accion"),
+      id: read(contacto, "id"),
+      nombre: read(contacto, "nombre"),
+      telefono: read(contacto, "telefono"),
+      telefonoNormalizado: read(contacto, "telefono_normalizado"),
+      etiqueta: read(contacto, "etiqueta"),
+      origen: read(contacto, "origen"),
+      notas: read(contacto, "notas"),
+      clientaFiel: ["true", "si", "sí", "1"].includes(
+        read(contacto, "clienta_fiel").toLowerCase()
+      ),
+      cohortes: read(contacto, "cohorte"),
+      estadoContacto: read(contacto, "estado_contacto"),
+      interes: read(contacto, "interes"),
+      ultimaInteraccion: read(contacto, "ultima_interaccion"),
+      proximaAccion: read(contacto, "proxima_accion"),
+      email: read(contacto, "email"),
+      organizacion: read(contacto, "organizacion"),
+      estadoImportacion: read(contacto, "estado_importacion"),
+      contactableWhatsapp: ["true", "si", "sí", "1", "true()"].includes(
+        read(contacto, "contactable_whatsapp").toLowerCase()
+      ),
+      motivoRevision: read(contacto, "motivo_revision"),
     })),
   };
 }

@@ -45,7 +45,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setMobileSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-crm-bg p-4 pb-20 sm:p-6 lg:pb-6">
+        {process.env.NEXT_PUBLIC_ADMIN_PROTECTED === "false" && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-xs px-4 py-2.5 text-center font-bold tracking-wide flex items-center justify-center gap-2 shrink-0">
+            <span>⚠️</span>
+            <span>Modo auditoría activo. Protege el CRM antes de operar con datos reales.</span>
+          </div>
+        )}
+        <main className="flex-1 overflow-y-auto bg-crm-bg p-4 pb-28 sm:pb-32 lg:pb-6">
           {children}
         </main>
       </div>

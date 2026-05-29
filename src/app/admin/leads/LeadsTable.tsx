@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { 
   MessageSquare, 
@@ -81,6 +81,11 @@ interface Contact {
   interes: string;
   ultimaInteraccion: string;
   proximaAccion: string;
+  email?: string;
+  organizacion?: string;
+  estadoImportacion?: string;
+  contactableWhatsapp?: boolean;
+  motivoRevision?: string;
 }
 
 interface CartItem {
@@ -100,6 +105,17 @@ interface LeadsTableProps {
   defaultTab?: "pedidos" | "contactos";
   defaultFilter?: string;
 }
+
+const normalizeFilter = (f?: string): string => {
+  if (!f) return "all";
+  const lower = f.toLowerCase();
+  if (lower === "csv_ptigo" || lower === "csv ptigo") return "csv_ptigo";
+  if (lower === "vcf_ivette" || lower === "vcf ivette") return "vcf_ivette";
+  if (lower === "revision" || lower === "revisión") return "revision";
+  if (lower === "whatsapp_valido" || lower === "whatsapp válido" || lower === "con_whatsapp") return "whatsapp_valido";
+  if (lower === "lanzamiento_500" || lower === "lanzamiento 500" || lower === "lanzamiento") return "lanzamiento_500";
+  return "all";
+};
 
 const MOCK_DEMO_LEADS: Lead[] = [
   {
@@ -226,7 +242,18 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
   // Contacts State & Filters
   const [contacts, setContacts] = useState(initialContacts);
   const [contactsSearchQuery, setContactsSearchQuery] = useState("");
-  const [contactsFilter, setContactsFilter] = useState(defaultFilter); // all, clientas_fieles, lanzamiento_500, con_whatsapp, interes_kit, quincenal, seguimiento
+  const [contactsFilter, setContactsFilter] = useState(() => normalizeFilter(defaultFilter));
+  const [contactsPage, setContactsPage] = useState(1);
+  const contactsPerPage = 100;
+
+  useEffect(() => {
+    setContactsPage(1);
+  }, [contactsFilter, contactsSearchQuery]);
+
+  useEffect(() => {
+    setContactsFilter(normalizeFilter(defaultFilter));
+  }, [defaultFilter]);
+
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messageContact, setMessageContact] = useState<Contact | null>(null);
   const [followUpContact, setFollowUpContact] = useState<Contact | null>(null);
@@ -297,22 +324,42 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
     // 2. Tab-specific category filters
     let matchesCategory = true;
-    if (contactsFilter === "clientas_fieles") {
-      matchesCategory = contact.clientaFiel === true || contact.etiqueta.toLowerCase().includes("fiel");
+    if (contactsFilter === "whatsapp_valido") {
+      matchesCategory = contact.contactableWhatsapp === true;
+    } else if (contactsFilter === "revision") {
+      matchesCategory = contact.contactableWhatsapp === false || !contact.telefonoNormalizado || contact.estadoImportacion === "Revisión";
     } else if (contactsFilter === "lanzamiento_500") {
       matchesCategory = contact.cohortes === "lanzamiento_500";
-    } else if (contactsFilter === "con_whatsapp") {
-      matchesCategory = contact.telefonoNormalizado.length > 0;
-    } else if (contactsFilter === "interes_kit") {
-      matchesCategory = contact.interes.toLowerCase().includes("kit") || contact.notas.toLowerCase().includes("kit");
-    } else if (contactsFilter === "quincenal") {
-      matchesCategory = contact.notas.toLowerCase().includes("quincenal") || contact.interes.toLowerCase().includes("quincenal");
-    } else if (contactsFilter === "seguimiento") {
-      matchesCategory = contact.estadoContacto === "Seguimiento" || contact.proximaAccion.length > 0;
+    } else if (contactsFilter === "csv_ptigo") {
+      matchesCategory = contact.origen === "CSV ptigo";
+    } else if (contactsFilter === "vcf_ivette") {
+      matchesCategory = contact.origen === "VCF Ivette";
     }
 
     return matchesSearch && matchesCategory;
   });
+
+  const totalContactsCount = contacts.length;
+  const whatsappValidoCount = contacts.filter((c) => c.contactableWhatsapp === true).length;
+  const revisionCount = contacts.filter((c) => c.contactableWhatsapp === false || !c.telefonoNormalizado || c.estadoImportacion === "Revisión").length;
+  const lanzamiento500Count = contacts.filter((c) => c.cohortes === "lanzamiento_500").length;
+  const csvPtigoCount = contacts.filter((c) => c.origen === "CSV ptigo").length;
+  const vcfIvetteCount = contacts.filter((c) => c.origen === "VCF Ivette").length;
+
+  const filterOptions = [
+    { value: "all", label: "Todos", count: totalContactsCount },
+    { value: "whatsapp_valido", label: "WhatsApp válido", count: whatsappValidoCount },
+    { value: "revision", label: "Revisión", count: revisionCount },
+    { value: "lanzamiento_500", label: "Lanzamiento 500", count: lanzamiento500Count },
+    { value: "csv_ptigo", label: "CSV ptigo", count: csvPtigoCount },
+    { value: "vcf_ivette", label: "VCF Ivette", count: vcfIvetteCount },
+  ];
+
+  const totalFilteredContacts = filteredContacts.length;
+  const totalPages = Math.ceil(totalFilteredContacts / contactsPerPage);
+  const startIndex = (contactsPage - 1) * contactsPerPage;
+  const endIndex = Math.min(startIndex + contactsPerPage, totalFilteredContacts);
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
 
   // Templates definition
   const getTemplates = (name: string) => {
@@ -615,171 +662,299 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
           {/* Leads Grid/Table */}
           <div className="bg-crm-surface border border-crm-line rounded-2xl overflow-hidden">
             {filteredLeads.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-crm-line bg-crm-surface2 text-crm-muted uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Cliente & Pedido</th>
-                      <th className="px-4 py-3 font-semibold">Ubicación & Envío</th>
-                      <th className="px-4 py-3 font-semibold">Modalidad</th>
-                      <th className="px-4 py-3 font-semibold">Cuotas / Cobros</th>
-                      <th className="px-4 py-3 font-semibold">Monto Total</th>
-                      <th className="px-4 py-3 font-semibold">Estado Lead</th>
-                      <th className="px-4 py-3 text-right font-semibold">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-crm-line">
-                    {filteredLeads.map((lead) => {
-                      const itemsDisplay = lead.itemsSummary || lead.producto || "Productos";
-                      const displayTotal = lead.total || 0;
-                      const isPlan = lead.modalidadPago === "Plan Quincenal" || lead.modalidadPago === "Plan Quincenal Clienta Fiel";
-                      const remaining = isPlan ? getRemainingAmount(lead) : 0;
-                      const nextPayDate = lead.estadoPlan === "Cuota 2 pendiente" || lead.estadoPlan === "Cuota 1 pagada" 
-                        ? lead.fechaCuota2 
-                        : lead.fechaCuota1;
+              <>
+                {/* Mobile View: Cards */}
+                <div className="block sm:hidden space-y-4 p-4">
+                  {filteredLeads.map((lead) => {
+                    const itemsDisplay = lead.itemsSummary || lead.producto || "Productos";
+                    const displayTotal = lead.total || 0;
+                    const isPlan = lead.modalidadPago === "Plan Quincenal" || lead.modalidadPago === "Plan Quincenal Clienta Fiel";
+                    const remaining = isPlan ? getRemainingAmount(lead) : 0;
+                    const nextPayDate = lead.estadoPlan === "Cuota 2 pendiente" || lead.estadoPlan === "Cuota 1 pagada" 
+                      ? lead.fechaCuota2 
+                      : lead.fechaCuota1;
 
-                      const leadMessage = getLeadMessage(lead);
-                      const waUrl = buildWhatsAppContactLink(lead.whatsapp, leadMessage);
+                    const leadMessage = getLeadMessage(lead);
+                    const waUrl = buildWhatsAppContactLink(lead.whatsapp, leadMessage);
 
-                      return (
-                        <tr 
-                          key={lead.id} 
-                          className={`transition-colors hover:bg-crm-bg2 ${
-                            lead.estado === "Nuevo" ? "bg-crm-gold/5" : ""
-                          }`}
-                        >
-                          {/* Client & Date */}
-                          <td className="px-4 py-3">
-                            <div className="font-bold text-crm-text flex items-center gap-1">
+                    return (
+                      <div
+                        key={lead.id}
+                        className={`border border-crm-line bg-crm-surface2 rounded-xl p-4 space-y-3 transition-colors ${
+                          lead.estado === "Nuevo" ? "bg-crm-gold/5 border-crm-gold/30" : ""
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-1 min-w-0">
+                            <div className="font-bold text-crm-text flex items-center gap-1.5 truncate">
                               <User className="h-3.5 w-3.5 text-crm-muted shrink-0" />
-                              {lead.nombre} {lead.apellido}
+                              <span className="truncate">{lead.nombre} {lead.apellido}</span>
                             </div>
-                            <div className="text-[10px] text-crm-faint mt-0.5 font-mono flex items-center gap-1">
+                            <div className="text-[10px] text-crm-faint font-mono flex items-center gap-1">
                               <Phone className="h-3 w-3 shrink-0" />
-                              {lead.whatsapp}
+                              <span>{lead.whatsapp}</span>
                             </div>
-                            <div className="text-[9px] text-crm-faint mt-0.5 flex items-center gap-1">
+                            <div className="text-[9px] text-crm-faint flex items-center gap-1">
                               <Calendar className="h-3 w-3 shrink-0" />
-                              {lead.fecha}
+                              <span>{lead.fecha}</span>
                             </div>
-                          </td>
-
-                          {/* Address & Delivery */}
-                          <td className="px-4 py-3">
-                            <div className="font-semibold text-crm-text flex items-center gap-1">
-                              <MapPin className="h-3 w-3 text-crm-cyan shrink-0" />
-                              {lead.provincia}
-                            </div>
-                            <div className="text-[10px] text-crm-muted max-w-[200px] truncate mt-0.5">
-                              {lead.direccion}
-                            </div>
-                            <div className="mt-1">
-                              <span className={`inline-block border text-[8px] px-1.5 py-0.5 rounded-full ${getDeliveryMethodText(lead.deliveryMethod).style}`}>
-                                {getDeliveryMethodText(lead.deliveryMethod).label}
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Modality */}
-                          <td className="px-4 py-3">
-                            {isPlan ? (
-                              <div className="space-y-1">
-                                <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[9px] hover:bg-crm-gold/20 py-0 font-bold uppercase tracking-wider">
-                                  Plan Quincenal 🌿
-                                </Badge>
-                                <div className="text-[9px] text-crm-faint font-mono">
-                                  Clienta Fiel
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[9px] hover:bg-crm-surface3 py-0 font-semibold uppercase tracking-wider">
-                                  Pago Completo
-                                </Badge>
-                                <div className="text-[9px] text-crm-faint">
-                                  {lead.metodoPago || "Transferencia"}
-                                </div>
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Quincenas & Cobros */}
-                          <td className="px-4 py-3">
-                            {isPlan ? (
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-crm-muted">Falta:</span>
-                                  <span className="font-extrabold text-crm-teal">
-                                    RD$ {remaining.toLocaleString()}
-                                  </span>
-                                </div>
-                                {nextPayDate && (
-                                  <div className="text-[9px] text-crm-faint flex items-center gap-0.5 font-mono">
-                                    <Clock className="h-2.5 w-2.5 shrink-0" />
-                                    Pago: {nextPayDate}
-                                  </div>
-                                )}
-                                <div className="mt-1">
-                                  <Badge variant="outline" className={`text-[8px] py-0 px-1 font-bold ${getPlanStatusBadge(lead.estadoPlan || "Pendiente inicio")}`}>
-                                    {lead.estadoPlan || "Pendiente inicio"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-crm-faint italic text-[10px]">No aplica plan</span>
-                            )}
-                          </td>
-
-                          {/* Total Cost */}
-                          <td className="px-4 py-3">
-                            <div className="font-extrabold text-crm-text text-sm">
-                              RD$ {displayTotal.toLocaleString()}
-                            </div>
-                            <div className="text-[9px] text-crm-faint max-w-[150px] truncate" title={itemsDisplay}>
-                              {itemsDisplay}
-                            </div>
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-4 py-3">
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
                             <Badge variant="outline" className={`text-[8px] uppercase tracking-wider font-bold ${getStatusBadge(lead.estado)}`}>
                               {lead.estado}
                             </Badge>
-                          </td>
+                            <span className={`inline-block border text-[8px] px-1.5 py-0.5 rounded-full ${getDeliveryMethodText(lead.deliveryMethod).style}`}>
+                              {getDeliveryMethodText(lead.deliveryMethod).label}
+                            </span>
+                          </div>
+                        </div>
 
-                          {/* Actions */}
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => setSelectedLead(lead)}
-                                className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
-                              >
-                                Detalle
-                              </button>
-                              <a
-                                href={waUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm"
-                              >
-                                <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
-                                WhatsApp
-                              </a>
-                              <button
-                                onClick={() => handleCopyMessage(leadMessage)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
-                              >
-                                <Copy className="h-3.5 w-3.5 shrink-0" />
-                                Copiar
-                              </button>
+                        <div className="border-t border-crm-line/60 pt-2.5 space-y-2">
+                          <div className="text-[11px] text-crm-muted">
+                            <span className="font-semibold text-crm-faint block text-[9px] uppercase tracking-wider">Productos:</span>
+                            <div className="break-words mt-0.5" title={itemsDisplay}>
+                              {itemsDisplay}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs bg-crm-surface/60 p-2.5 rounded-xl border border-crm-line/50">
+                            <div>
+                              <span className="text-[9px] text-crm-faint block uppercase">Monto Total:</span>
+                              <span className="font-extrabold text-crm-text text-sm">RD$ {displayTotal.toLocaleString()}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[9px] text-crm-faint block uppercase">Modalidad:</span>
+                              {isPlan ? (
+                                <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[8px] font-bold py-0.5 px-1.5">
+                                  Plan Quincenal
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[8px] py-0.5 px-1.5">
+                                  Pago Completo
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {isPlan && (
+                            <div className="bg-[#c5a059]/5 border border-[#c5a059]/20 p-2.5 rounded-xl text-xs space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-crm-faint">Restante:</span>
+                                <span className="font-extrabold text-crm-teal">RD$ {remaining.toLocaleString()}</span>
+                              </div>
+                              {nextPayDate && (
+                                <div className="flex justify-between text-[10px] text-crm-faint">
+                                  <span>Próx. Pago:</span>
+                                  <span className="font-mono">{nextPayDate}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center pt-1 border-t border-[#c5a059]/10">
+                                <span className="text-[10px] text-crm-faint">Estado Plan:</span>
+                                <Badge variant="outline" className={`text-[8px] py-0 px-1 font-bold ${getPlanStatusBadge(lead.estadoPlan || "Pendiente inicio")}`}>
+                                  {lead.estadoPlan || "Pendiente inicio"}
+                                </Badge>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-crm-line/60">
+                          <button
+                            onClick={() => setSelectedLead(lead)}
+                            className="flex-1 min-h-[38px] text-center rounded border border-crm-line bg-crm-surface hover:bg-crm-surface3 text-crm-text font-bold text-xs transition-all py-1.5"
+                          >
+                            Detalle
+                          </button>
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold text-xs transition-all shadow-sm py-1.5"
+                          >
+                            <MessageSquare className="h-4 w-4 fill-current shrink-0" />
+                            WhatsApp
+                          </a>
+                          <button
+                            onClick={() => handleCopyMessage(leadMessage)}
+                            className="min-h-[38px] px-3 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold text-xs transition-all py-1.5"
+                            title="Copiar mensaje"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop View: Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-crm-line bg-crm-surface2 text-crm-muted uppercase tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Cliente & Pedido</th>
+                        <th className="px-4 py-3 font-semibold">Ubicación & Envío</th>
+                        <th className="px-4 py-3 font-semibold">Modalidad</th>
+                        <th className="px-4 py-3 font-semibold">Cuotas / Cobros</th>
+                        <th className="px-4 py-3 font-semibold">Monto Total</th>
+                        <th className="px-4 py-3 font-semibold">Estado Lead</th>
+                        <th className="px-4 py-3 text-right font-semibold">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-crm-line">
+                      {filteredLeads.map((lead) => {
+                        const itemsDisplay = lead.itemsSummary || lead.producto || "Productos";
+                        const displayTotal = lead.total || 0;
+                        const isPlan = lead.modalidadPago === "Plan Quincenal" || lead.modalidadPago === "Plan Quincenal Clienta Fiel";
+                        const remaining = isPlan ? getRemainingAmount(lead) : 0;
+                        const nextPayDate = lead.estadoPlan === "Cuota 2 pendiente" || lead.estadoPlan === "Cuota 1 pagada" 
+                          ? lead.fechaCuota2 
+                          : lead.fechaCuota1;
+
+                        const leadMessage = getLeadMessage(lead);
+                        const waUrl = buildWhatsAppContactLink(lead.whatsapp, leadMessage);
+
+                        return (
+                          <tr 
+                            key={lead.id} 
+                            className={`transition-colors hover:bg-crm-bg2 ${
+                              lead.estado === "Nuevo" ? "bg-crm-gold/5" : ""
+                            }`}
+                          >
+                            {/* Client & Date */}
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-crm-text flex items-center gap-1">
+                                <User className="h-3.5 w-3.5 text-crm-muted shrink-0" />
+                                {lead.nombre} {lead.apellido}
+                              </div>
+                              <div className="text-[10px] text-crm-faint mt-0.5 font-mono flex items-center gap-1">
+                                <Phone className="h-3 w-3 shrink-0" />
+                                {lead.whatsapp}
+                              </div>
+                              <div className="text-[9px] text-crm-faint mt-0.5 flex items-center gap-1">
+                                <Calendar className="h-3 w-3 shrink-0" />
+                                {lead.fecha}
+                              </div>
+                            </td>
+
+                            {/* Address & Delivery */}
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-crm-text flex items-center gap-1">
+                                <MapPin className="h-3 w-3 text-crm-cyan shrink-0" />
+                                {lead.provincia}
+                              </div>
+                              <div className="text-[10px] text-crm-muted max-w-[200px] truncate mt-0.5">
+                                {lead.direccion}
+                              </div>
+                              <div className="mt-1">
+                                <span className={`inline-block border text-[8px] px-1.5 py-0.5 rounded-full ${getDeliveryMethodText(lead.deliveryMethod).style}`}>
+                                  {getDeliveryMethodText(lead.deliveryMethod).label}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Modality */}
+                            <td className="px-4 py-3">
+                              {isPlan ? (
+                                <div className="space-y-1">
+                                  <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[9px] hover:bg-crm-gold/20 py-0 font-bold uppercase tracking-wider">
+                                    Plan Quincenal 🌿
+                                  </Badge>
+                                  <div className="text-[9px] text-crm-faint font-mono">
+                                    Clienta Fiel
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[9px] hover:bg-crm-surface3 py-0 font-semibold uppercase tracking-wider">
+                                    Pago Completo
+                                  </Badge>
+                                  <div className="text-[9px] text-crm-faint">
+                                    {lead.metodoPago || "Transferencia"}
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Quincenas & Cobros */}
+                            <td className="px-4 py-3">
+                              {isPlan ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] text-crm-muted">Falta:</span>
+                                    <span className="font-extrabold text-crm-teal">
+                                      RD$ {remaining.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  {nextPayDate && (
+                                    <div className="text-[9px] text-crm-faint flex items-center gap-0.5 font-mono">
+                                      <Clock className="h-2.5 w-2.5 shrink-0" />
+                                      Pago: {nextPayDate}
+                                    </div>
+                                  )}
+                                  <div className="mt-1">
+                                    <Badge variant="outline" className={`text-[8px] py-0 px-1 font-bold ${getPlanStatusBadge(lead.estadoPlan || "Pendiente inicio")}`}>
+                                      {lead.estadoPlan || "Pendiente inicio"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-crm-faint italic text-[10px]">No aplica plan</span>
+                              )}
+                            </td>
+
+                            {/* Total Cost */}
+                            <td className="px-4 py-3">
+                              <div className="font-extrabold text-crm-text text-sm">
+                                RD$ {displayTotal.toLocaleString()}
+                              </div>
+                              <div className="text-[9px] text-crm-faint max-w-[150px] truncate" title={itemsDisplay}>
+                                {itemsDisplay}
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className={`text-[8px] uppercase tracking-wider font-bold ${getStatusBadge(lead.estado)}`}>
+                                {lead.estado}
+                              </Badge>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSelectedLead(lead)}
+                                  className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                                >
+                                  Detalle
+                                </button>
+                                <a
+                                  href={waUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
+                                  WhatsApp
+                                </a>
+                                <button
+                                  onClick={() => handleCopyMessage(leadMessage)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                                >
+                                  <Copy className="h-3.5 w-3.5 shrink-0" />
+                                  Copiar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : (
               <div className="text-center py-16 text-crm-muted space-y-3">
                 <ShieldAlert className="h-10 w-10 text-crm-gold/40 mx-auto" />
@@ -797,174 +972,377 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
       {activeTab === "contactos" && (
         <div className="space-y-4">
           {/* Contacts Control Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-crm-surface border border-crm-line rounded-2xl p-4">
+          <div className="bg-crm-surface border border-crm-line rounded-2xl p-4 space-y-4">
             {/* Search */}
-            <div className="relative sm:col-span-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-crm-muted" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, teléfono, notas o cohorte..."
                 value={contactsSearchQuery}
                 onChange={(e) => setContactsSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-crm-line text-xs bg-crm-bg text-crm-text focus:outline-none focus:border-crm-gold transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-crm-line text-xs bg-crm-bg text-crm-text focus:outline-none focus:border-crm-gold transition-colors"
               />
             </div>
 
             {/* Main filter categories */}
-            <div className="relative md:col-span-2">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-crm-muted" />
-              <select
-                value={contactsFilter}
-                onChange={(e) => setContactsFilter(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 rounded-xl border border-crm-line text-xs bg-crm-bg text-crm-text focus:outline-none focus:border-crm-gold transition-colors appearance-none"
-              >
-                <option value="all">Categorías de Contactos (Ver Todo)</option>
-                <option value="clientas_fieles">Clientas Fieles</option>
-                <option value="lanzamiento_500">Lanzamiento 500 (Primeras 500)</option>
-                <option value="con_whatsapp">Con Teléfono Disponible</option>
-                <option value="interes_kit">Interesadas en Kit Ritual</option>
-                <option value="quincenal">Mención de Pago Quincenal</option>
-                <option value="seguimiento">Pendientes de Seguimiento</option>
-              </select>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {filterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    const normalized = normalizeFilter(opt.value);
+                    setContactsFilter(normalized);
+                    setContactsPage(1);
+                    const url = normalized === "all" ? "/admin/contactos" : `/admin/contactos?filter=${normalized}`;
+                    window.history.pushState(null, "", url);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                    contactsFilter === opt.value
+                      ? "bg-crm-gold/25 border-crm-gold text-crm-gold"
+                      : "bg-crm-surface2 border-crm-line text-crm-muted hover:text-crm-text hover:bg-crm-surface3"
+                  }`}
+                >
+                  {opt.label} <span className="opacity-70 font-mono font-normal">({opt.count})</span>
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Contacts Table */}
           <div className="bg-crm-surface border border-crm-line rounded-2xl overflow-hidden">
             {filteredContacts.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-crm-line bg-crm-surface2 text-crm-muted uppercase tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Nombre de Contacto</th>
-                      <th className="px-4 py-3 font-semibold">WhatsApp / Teléfono</th>
-                      <th className="px-4 py-3 font-semibold">Segmento / Cohorte</th>
-                      <th className="px-4 py-3 font-semibold">Interés / Producto</th>
-                      <th className="px-4 py-3 font-semibold">Próxima Acción</th>
-                      <th className="px-4 py-3 font-semibold">Última Interacción / Notas</th>
-                      <th className="px-4 py-3 text-right font-semibold">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-crm-line">
-                    {filteredContacts.map((contact) => (
-                      <tr key={contact.id} className="transition-colors hover:bg-crm-bg2">
-                        {/* Name */}
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-crm-text flex items-center gap-1.5">
-                            <User className="h-3.5 w-3.5 text-crm-muted shrink-0" />
-                            {contact.nombre}
-                          </div>
-                          <div className="text-[9px] text-crm-faint mt-0.5">
-                            ID: {contact.id} • Origen: {contact.origen}
-                          </div>
-                        </td>
+              <>
+                {/* Mobile View: Cards */}
+                <div className="block sm:hidden space-y-4 p-4">
+                  {paginatedContacts.map((contact) => {
+                    const launchMessage = getContactLaunchMessage();
+                    const waUrl = buildWhatsAppContactLink(contact.telefonoNormalizado || contact.telefono, launchMessage);
 
-                        {/* Phone */}
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-crm-text flex items-center gap-1 font-mono">
-                            <Phone className="h-3 w-3 text-crm-cyan shrink-0" />
-                            {contact.telefono}
+                    return (
+                      <div
+                        key={contact.id}
+                        className="border border-crm-line bg-crm-surface2 rounded-xl p-4 space-y-3 transition-colors"
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-1 min-w-0">
+                            <div className="font-bold text-crm-text flex items-center gap-1.5 truncate">
+                              <User className="h-3.5 w-3.5 text-crm-muted shrink-0" />
+                              <span className="truncate">{contact.nombre}</span>
+                            </div>
+                            <div className="text-[10px] text-crm-faint font-mono flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-crm-cyan shrink-0" />
+                              <span>{contact.telefono || "Sin teléfono"}</span>
+                            </div>
+                            {contact.telefonoNormalizado && contact.telefonoNormalizado !== contact.telefono && (
+                              <div className="text-[9px] text-crm-faint font-mono">
+                                Norm: {contact.telefonoNormalizado}
+                              </div>
+                            )}
+                            <div className="text-[9px] text-crm-faint mt-1 space-y-0.5">
+                              <div>ID: {contact.id} • Origen: {contact.origen}</div>
+                              {contact.organizacion && <div>Org: <span className="text-crm-text">{contact.organizacion}</span></div>}
+                              {contact.email && <div className="font-mono">Email: <span className="text-crm-text">{contact.email}</span></div>}
+                              {contact.estadoImportacion && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                    contact.estadoImportacion === "Importado" ? "bg-green-400" : "bg-yellow-500"
+                                  }`} />
+                                  <span>Importación: {contact.estadoImportacion}</span>
+                                  {contact.motivoRevision && <span className="text-crm-muted">({contact.motivoRevision})</span>}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-[9px] text-crm-faint font-mono">
-                            Norm: {contact.telefonoNormalizado}
-                          </div>
-                        </td>
-
-                        {/* Cohorte & Fiel Badge */}
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
+                          
+                          <div className="flex flex-wrap gap-1 items-end justify-end shrink-0">
                             {contact.clientaFiel && (
-                              <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[8px] hover:bg-crm-gold/20 py-0 px-1 font-bold">
+                              <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[8px] font-bold py-0.5 px-1.5">
                                 Fiel 🌿
                               </Badge>
                             )}
                             {contact.cohortes === "lanzamiento_500" ? (
-                              <Badge className="bg-purple-500/20 border border-purple-500/40 text-purple-400 text-[8px] hover:bg-purple-500/20 py-0 px-1">
+                              <Badge className="bg-purple-500/20 border border-purple-500/40 text-purple-400 text-[8px] py-0.5 px-1.5">
                                 Lanzamiento 500
                               </Badge>
                             ) : contact.cohortes ? (
-                              <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[8px] py-0 px-1">
+                              <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[8px] py-0.5 px-1.5">
                                 {contact.cohortes}
                               </Badge>
                             ) : null}
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Interest */}
-                        <td className="px-4 py-3 font-semibold text-crm-gold">
-                          {contact.interes ? (
-                            <span className="flex items-center gap-1">
-                              <ShoppingCart className="h-3 w-3 shrink-0" />
-                              {contact.interes}
-                            </span>
-                          ) : (
-                            <span className="text-crm-faint italic font-normal text-[10px]">No especificado</span>
-                          )}
-                        </td>
-
-                        {/* Proxima Accion */}
-                        <td className="px-4 py-3">
-                          {contact.proximaAccion ? (
-                            <div className="flex items-center gap-1 font-medium text-crm-cyan">
-                              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
-                              {contact.proximaAccion}
+                        <div className="border-t border-crm-line/60 pt-2.5 space-y-2 text-xs">
+                          {contact.interes && (
+                            <div className="flex justify-between items-center py-1">
+                              <span className="text-crm-faint">Interés:</span>
+                              <span className="font-bold text-crm-gold flex items-center gap-1">
+                                <ShoppingCart className="h-3.5 w-3.5 shrink-0" />
+                                {contact.interes}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-crm-faint italic text-[10px]">Sin acción</span>
                           )}
-                        </td>
 
-                        {/* Last Interaction / Notes */}
-                        <td className="px-4 py-3">
-                          <div className="text-[10px] text-crm-muted max-w-[200px] truncate" title={contact.notas}>
-                            {contact.notas || <span className="text-crm-faint italic">Sin notas</span>}
-                          </div>
+                          {contact.proximaAccion && (
+                            <div className="flex justify-between items-center py-1 bg-crm-cyan/5 border border-crm-cyan/20 p-2 rounded-xl">
+                              <span className="text-crm-cyan font-bold">Próxima Acción:</span>
+                              <span className="font-bold text-crm-cyan">{contact.proximaAccion}</span>
+                            </div>
+                          )}
+
+                          {contact.notas && (
+                            <div className="text-[11px] text-crm-muted bg-crm-surface/60 p-2.5 rounded-xl border border-crm-line/50">
+                              <span className="font-semibold text-crm-muted block text-[9px] uppercase tracking-wider">Notas:</span>
+                              <p className="text-[11px] text-crm-text break-words line-clamp-3 leading-relaxed">
+                                {contact.notas}
+                              </p>
+                            </div>
+                          )}
+
                           {contact.ultimaInteraccion && (
-                            <div className="text-[9px] text-crm-faint mt-0.5 font-mono">
-                              Int: {contact.ultimaInteraccion}
+                            <div className="text-[10px] text-crm-faint text-right font-mono">
+                              Última int: {contact.ultimaInteraccion}
                             </div>
                           )}
-                        </td>
+                        </div>
 
-                        {/* Actions */}
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setSelectedContact(contact)}
-                              className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
-                            >
-                              Ver
-                            </button>
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-crm-line/60">
+                          <button
+                            onClick={() => setSelectedContact(contact)}
+                            className="flex-1 min-h-[38px] text-center rounded border border-crm-line bg-crm-surface hover:bg-crm-surface3 text-crm-text font-bold text-xs transition-all py-1.5"
+                          >
+                            Ver
+                          </button>
+                          {contact.contactableWhatsapp ? (
                             <a
-                              href={buildWhatsAppContactLink(contact.telefonoNormalizado || contact.telefono, getContactLaunchMessage())}
+                              href={waUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm"
+                              className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold text-xs transition-all shadow-sm py-1.5"
                             >
-                              <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
+                              <MessageSquare className="h-4 w-4 fill-current shrink-0" />
                               WhatsApp
                             </a>
+                          ) : (
                             <button
-                              onClick={() => handleCopyMessage(getContactLaunchMessage())}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                              disabled
+                              className="flex-1 min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded bg-crm-surface border border-crm-line text-crm-muted font-bold text-xs cursor-not-allowed opacity-50 py-1.5"
                             >
-                              <Copy className="h-3.5 w-3.5 shrink-0" />
-                              Copiar
+                              <MessageSquare className="h-4 w-4 fill-current shrink-0" />
+                              Revisar teléfono
                             </button>
-                            <button
-                              onClick={() => openFollowUp(contact)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
-                            >
-                              <Clock className="h-3.5 w-3.5 shrink-0" />
-                              Seguimiento
-                            </button>
-                          </div>
-                        </td>
+                          )}
+                          <button
+                            onClick={() => handleCopyMessage(launchMessage)}
+                            className="min-h-[38px] px-3 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface3 text-crm-text font-bold text-xs transition-all py-1.5"
+                            title="Copiar mensaje"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openFollowUp(contact)}
+                            className="min-h-[38px] px-3 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface3 text-crm-text font-bold text-xs transition-all py-1.5"
+                            title="Registrar seguimiento"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop View: Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-crm-line bg-crm-surface2 text-crm-muted uppercase tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">Nombre de Contacto</th>
+                        <th className="px-4 py-3 font-semibold">WhatsApp / Teléfono</th>
+                        <th className="px-4 py-3 font-semibold">Segmento / Cohorte</th>
+                        <th className="px-4 py-3 font-semibold">Interés / Producto</th>
+                        <th className="px-4 py-3 font-semibold">Próxima Acción</th>
+                        <th className="px-4 py-3 font-semibold">Última Interacción / Notas</th>
+                        <th className="px-4 py-3 text-right font-semibold">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-crm-line">
+                      {paginatedContacts.map((contact) => (
+                        <tr key={contact.id} className="transition-colors hover:bg-crm-bg2">
+                           {/* Name */}
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-crm-text flex items-center gap-1.5">
+                              <User className="h-3.5 w-3.5 text-crm-muted shrink-0" />
+                              {contact.nombre}
+                            </div>
+                            <div className="text-[9px] text-crm-faint mt-0.5 space-y-0.5">
+                              <div>ID: {contact.id} • Origen: {contact.origen}</div>
+                              {contact.organizacion && <div>Org: <span className="text-crm-text">{contact.organizacion}</span></div>}
+                              {contact.email && <div>Email: <span className="text-crm-text font-mono">{contact.email}</span></div>}
+                              {contact.estadoImportacion && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                                    contact.estadoImportacion === "Importado" ? "bg-green-400" : "bg-yellow-500"
+                                  }`} />
+                                  <span>Importación: {contact.estadoImportacion}</span>
+                                  {contact.motivoRevision && <span className="text-crm-muted">({contact.motivoRevision})</span>}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Phone */}
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-crm-text flex items-center gap-1 font-mono">
+                              <Phone className="h-3 w-3 text-crm-cyan shrink-0" />
+                              {contact.telefono}
+                            </div>
+                            <div className="text-[9px] text-crm-faint font-mono">
+                              Norm: {contact.telefonoNormalizado}
+                            </div>
+                          </td>
+
+                          {/* Cohorte & Fiel Badge */}
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {contact.clientaFiel && (
+                                <Badge className="bg-crm-gold/20 border border-crm-gold/40 text-crm-gold text-[8px] hover:bg-crm-gold/20 py-0 px-1 font-bold">
+                                  Fiel 🌿
+                                </Badge>
+                              )}
+                              {contact.cohortes === "lanzamiento_500" ? (
+                                <Badge className="bg-purple-500/20 border border-purple-500/40 text-purple-400 text-[8px] hover:bg-purple-500/20 py-0 px-1">
+                                  Lanzamiento 500
+                                </Badge>
+                              ) : contact.cohortes ? (
+                                <Badge className="bg-crm-surface3 border border-crm-line text-crm-muted text-[8px] py-0 px-1">
+                                  {contact.cohortes}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </td>
+
+                          {/* Interest */}
+                          <td className="px-4 py-3 font-semibold text-crm-gold">
+                            {contact.interes ? (
+                              <span className="flex items-center gap-1">
+                                <ShoppingCart className="h-3 w-3 shrink-0" />
+                                {contact.interes}
+                              </span>
+                            ) : (
+                              <span className="text-crm-faint italic font-normal text-[10px]">No especificado</span>
+                            )}
+                          </td>
+
+                          {/* Proxima Accion */}
+                          <td className="px-4 py-3">
+                            {contact.proximaAccion ? (
+                              <div className="flex items-center gap-1 font-medium text-crm-cyan">
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                                {contact.proximaAccion}
+                              </div>
+                            ) : (
+                              <span className="text-crm-faint italic text-[10px]">Sin acción</span>
+                            )}
+                          </td>
+
+                          {/* Last Interaction / Notes */}
+                          <td className="px-4 py-3">
+                            <div className="text-[10px] text-crm-muted max-w-[200px] truncate" title={contact.notas}>
+                              {contact.notas || <span className="text-crm-faint italic">Sin notas</span>}
+                            </div>
+                            {contact.ultimaInteraccion && (
+                              <div className="text-[9px] text-crm-faint mt-0.5 font-mono">
+                                Int: {contact.ultimaInteraccion}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedContact(contact)}
+                                className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                              >
+                                Ver
+                              </button>
+                              {contact.contactableWhatsapp ? (
+                                <a
+                                  href={buildWhatsAppContactLink(contact.telefonoNormalizado || contact.telefono, getContactLaunchMessage())}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
+                                  WhatsApp
+                                </a>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-crm-surface border border-crm-line text-crm-muted font-bold cursor-not-allowed opacity-50"
+                                  title="Número de teléfono no apto para WhatsApp"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
+                                  Revisar teléfono
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleCopyMessage(getContactLaunchMessage())}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                              >
+                                <Copy className="h-3.5 w-3.5 shrink-0" />
+                                Copiar
+                              </button>
+                              <button
+                                onClick={() => openFollowUp(contact)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                              >
+                                <Clock className="h-3.5 w-3.5 shrink-0" />
+                                Seguimiento
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-crm-line bg-crm-surface2">
+                    <div className="text-xs text-crm-muted">
+                      Mostrando <span className="font-semibold text-crm-text">{startIndex + 1}-{endIndex}</span> de{" "}
+                      <span className="font-semibold text-crm-text">{totalFilteredContacts}</span> contactos
+                      {contactsFilter !== "all" && ` (filtrados de ${totalContactsCount})`}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setContactsPage((p) => Math.max(1, p - 1))}
+                        disabled={contactsPage === 1}
+                        className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Anterior
+                      </button>
+                      
+                      <span className="text-xs text-crm-muted font-semibold px-2">
+                        Página {contactsPage} de {totalPages}
+                      </span>
+                      
+                      <button
+                        onClick={() => setContactsPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={contactsPage === totalPages}
+                        className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-16 text-crm-muted space-y-3">
                 <ShieldAlert className="h-10 w-10 text-crm-gold/40 mx-auto" />
@@ -980,8 +1358,8 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
       {/* LEAD DETALLE MODAL */}
       {selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-crm-surface border border-crm-line w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-8">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-crm-surface border border-crm-line w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-auto sm:my-8">
             {/* Header */}
             <div className="border-b border-crm-line bg-crm-surface2 px-6 py-4 flex items-center justify-between">
               <div>
@@ -1002,7 +1380,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto text-crm-text">
+            <div className="p-6 space-y-6 max-h-[85vh] overflow-y-auto text-crm-text">
               
               {/* Secciones en 2 Columnas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1283,8 +1661,8 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
       {/* CONTACT DETAIL MODAL */}
       {selectedContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-crm-surface border border-crm-line w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-8">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-crm-surface border border-crm-line w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-auto sm:my-8">
             <div className="border-b border-crm-line bg-crm-surface2 px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-extrabold text-crm-text flex items-center gap-2">
@@ -1301,7 +1679,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-crm-text text-xs">
+            <div className="p-6 space-y-4 text-crm-text text-xs max-h-[85vh] overflow-y-auto">
               <div className="space-y-2">
                 <div className="flex justify-between border-b border-crm-line pb-1.5">
                   <span className="text-crm-faint">Nombre:</span>
@@ -1319,6 +1697,30 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                   <span className="text-crm-faint">Origen Importación:</span>
                   <span>{selectedContact.origen}</span>
                 </div>
+                {selectedContact.email && (
+                  <div className="flex justify-between border-b border-crm-line pb-1.5">
+                    <span className="text-crm-faint">Email:</span>
+                    <span className="font-mono text-crm-text">{selectedContact.email}</span>
+                  </div>
+                )}
+                {selectedContact.organizacion && (
+                  <div className="flex justify-between border-b border-crm-line pb-1.5">
+                    <span className="text-crm-faint">Organización:</span>
+                    <span>{selectedContact.organizacion}</span>
+                  </div>
+                )}
+                {selectedContact.estadoImportacion && (
+                  <div className="flex justify-between border-b border-crm-line pb-1.5">
+                    <span className="text-crm-faint">Estado Importación:</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                        selectedContact.estadoImportacion === "Importado" ? "bg-green-400" : "bg-yellow-500"
+                      }`} />
+                      <span>{selectedContact.estadoImportacion}</span>
+                      {selectedContact.motivoRevision && <span className="text-crm-muted">({selectedContact.motivoRevision})</span>}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between border-b border-crm-line pb-1.5">
                   <span className="text-crm-faint">Clienta Fiel:</span>
                   <span>
@@ -1389,8 +1791,8 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
       {/* FOLLOW-UP MODAL */}
       {followUpContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-crm-line bg-crm-surface shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-crm-line bg-crm-surface shadow-2xl my-auto sm:my-8">
             <div className="flex items-center justify-between border-b border-crm-line bg-crm-surface2 px-6 py-4">
               <div>
                 <h2 className="flex items-center gap-2 text-base font-extrabold text-crm-text">
@@ -1409,7 +1811,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
               </button>
             </div>
 
-            <div className="space-y-4 p-6 text-xs">
+            <div className="space-y-4 p-6 text-xs max-h-[85vh] overflow-y-auto">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="space-y-1">
                   <span className="font-bold text-crm-muted">Estado</span>
@@ -1523,8 +1925,8 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
       {/* WHATSAPP TEMPLATE COMPOSER MODAL */}
       {messageContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-crm-surface border border-crm-line w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-8">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-crm-surface border border-crm-line w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-auto sm:my-8">
             <div className="border-b border-crm-line bg-crm-surface2 px-6 py-4 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-extrabold text-crm-text flex items-center gap-2">
@@ -1546,7 +1948,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
               {/* Template selector tabs */}
               <div className="space-y-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-crm-muted block">

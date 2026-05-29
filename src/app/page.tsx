@@ -28,7 +28,7 @@ export default function StoreFrontHome() {
             {/* Text */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               <div className="flex justify-center lg:justify-start mb-2">
-                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-16 w-16 object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1 shadow-md" />
+                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-24 w-24 md:h-32 md:w-32 object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1.5 shadow-lg transform hover:scale-105 transition-transform duration-300" />
               </div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#1e2d1a]/80 border border-[#c5a059]/20 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#c5a059]">
                 <Sparkles className="h-3.5 w-3.5 text-[#c5a059]" />
@@ -259,13 +259,19 @@ export default function StoreFrontHome() {
 
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {featuredProducts.map((product) => (
-              <Link
+              <div
                 key={product.id}
-                href={`/producto/${product.slug}`}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#f2eee9] bg-[#faf8f5] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-[#c5a059]/20 min-h-[430px]"
               >
+                {/* Invisible main overlay Link */}
+                <Link
+                  href={`/producto/${product.slug}`}
+                  className="absolute inset-0 z-0"
+                  aria-label={product.name}
+                />
+
                 {/* Visual Image with ProductVisual */}
-                <div className="h-56 w-full bg-[#f2eee9] flex items-center justify-center relative overflow-hidden border-b border-[#f2eee9]/40">
+                <div className="h-56 w-full bg-[#f2eee9] flex items-center justify-center relative overflow-hidden border-b border-[#f2eee9]/40 pointer-events-none">
                   {product.badge && (
                     <span className="absolute top-4 left-4 bg-[#faf8f5]/95 backdrop-blur-sm border border-[#f2eee9] text-[#c5a059] text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm z-10">
                       {product.badge}
@@ -280,7 +286,7 @@ export default function StoreFrontHome() {
                   />
                 </div>
 
-                <div className="flex flex-1 flex-col p-5 space-y-2 justify-between">
+                <div className="flex flex-1 flex-col p-5 space-y-2 justify-between relative z-10 pointer-events-none">
                   <div className="space-y-2">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-[#A8A29E]">
                       {product.category}
@@ -294,8 +300,8 @@ export default function StoreFrontHome() {
                   </div>
                   
                   {/* Prices & Actions */}
-                  <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto">
-                    <div>
+                  <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto pointer-events-auto">
+                    <div className="pointer-events-none">
                       {product.priceBefore && (
                         <span className="block text-[10px] text-[#A8A29E] line-through">
                           RD$ {product.priceBefore.toLocaleString()}
@@ -306,14 +312,14 @@ export default function StoreFrontHome() {
                       </span>
                     </div>
 
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 relative z-20">
                       <button
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           addItem(product, 1);
                         }}
-                        className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#f2eee9] text-[#c5a059] hover:bg-[#c5a059] hover:text-white transition-all text-xs font-bold gap-1 z-10"
+                        className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#f2eee9] text-[#c5a059] hover:bg-[#c5a059] hover:text-white transition-all text-xs font-bold gap-1"
                       >
                         <Plus className="h-3 w-3" />
                         Añadir
@@ -331,7 +337,7 @@ export default function StoreFrontHome() {
                     </div>
                   </div>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

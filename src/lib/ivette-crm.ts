@@ -35,6 +35,11 @@ export const CRM_HEADERS: Record<string, string[]> = {
     "ultima_interaccion",
     "proxima_accion",
     "notas",
+    "email",
+    "organizacion",
+    "estado_importacion",
+    "contactable_whatsapp",
+    "motivo_revision",
   ],
   [IVETTE_SHEETS.clientas]: [
     "id",
@@ -613,6 +618,8 @@ export async function createStoreOrder(input: StoreOrderInput) {
   const clienteNombre = [input.nombre, input.apellido].filter(Boolean).join(" ").trim();
   const zona = [input.provincia, input.municipio].filter(Boolean).join(" / ");
   const isPlan = isQuincenalPlan(input.modalidadPago);
+  const isPayPal = input.metodoPago === "PayPal";
+  const defaultEstado = isPayPal ? "Pendiente confirmación de pago" : "Nuevo";
   const plan = isPlan
     ? calculateQuincenalPlan(input.total, input.fechaEntrega || fecha)
     : null;
@@ -669,7 +676,7 @@ export async function createStoreOrder(input: StoreOrderInput) {
     total: input.total,
     metodo_pago: input.metodoPago,
     modalidad_pago: modalidadPago,
-    estado_pedido: "Nuevo",
+    estado_pedido: defaultEstado,
     origen: input.origen,
     direccion: input.direccion,
     zona,
@@ -684,8 +691,8 @@ export async function createStoreOrder(input: StoreOrderInput) {
     telefono: input.whatsapp,
     origen: input.origen,
     producto_interes: input.itemsSummary,
-    estado: "Nuevo",
-    proxima_accion: "Confirmar disponibilidad y pago",
+    estado: defaultEstado,
+    proxima_accion: isPayPal ? "Confirmar pago PayPal externo" : "Confirmar disponibilidad y pago",
     notas,
   });
 
@@ -763,7 +770,7 @@ export async function createStoreOrder(input: StoreOrderInput) {
     origen: input.origen,
     metodoPago: input.metodoPago,
     origenLead: "tienda",
-    estado: "Nuevo",
+    estado: defaultEstado,
     modalidadPago,
     montoTotal: input.total,
     cuota1: plan?.cuota1 || 0,

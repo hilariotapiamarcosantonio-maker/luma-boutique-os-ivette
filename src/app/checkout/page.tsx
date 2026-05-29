@@ -12,6 +12,7 @@ import { getSavedUTMs } from "@/components/layout/UTMTracker";
 import { useCart } from "@/context/CartContext";
 import { getCommerceConfig } from "@/config/commerce";
 import { ProductVisual } from "@/components/store/ProductVisual";
+import { paymentConfig } from "@/config/payments";
 
 function CheckoutFormContent() {
   const router = useRouter();
@@ -166,6 +167,15 @@ function CheckoutFormContent() {
 
       // Success: Clear Cart
       clearCart();
+
+      // PayPal integration: If payment link is configured, open in new tab
+      if (formData.metodoPago === "PayPal" && paymentConfig.PAYPAL_PAYMENT_LINK) {
+        try {
+          window.open(paymentConfig.PAYPAL_PAYMENT_LINK, "_blank");
+        } catch (e) {
+          console.error("Could not open PayPal link:", e);
+        }
+      }
 
       // Redirect to thank you page with context parameters
       router.push(
@@ -436,12 +446,12 @@ function CheckoutFormContent() {
             <label className="block text-xs font-semibold text-[#1e2d1a]">
               Método de Pago *
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Option 1: Transferencia */}
-              <label className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center cursor-pointer transition-all ${
+              <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
                 formData.metodoPago === "Transferencia"
                   ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
-                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#faf8f5] text-[#2a3b26]"
+                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
               }`}>
                 <input
                   type="radio"
@@ -451,15 +461,15 @@ function CheckoutFormContent() {
                   onChange={handleInputChange}
                   className="sr-only"
                 />
-                <span className="text-xs font-bold block">Transferencia</span>
-                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Bancaria / Pago móvil</span>
+                <span className="text-xs font-bold block">Transferencia Bancaria</span>
+                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Bancaria / Pago móvil (RD$)</span>
               </label>
 
               {/* Option 2: Domicilio contra entrega */}
-              <label className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center cursor-pointer transition-all ${
+              <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
                 formData.metodoPago === "Domicilio contra entrega"
                   ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
-                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#faf8f5] text-[#2a3b26]"
+                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
               }`}>
                 <input
                   type="radio"
@@ -470,14 +480,14 @@ function CheckoutFormContent() {
                   className="sr-only"
                 />
                 <span className="text-xs font-bold block">Contra Entrega</span>
-                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Paga al recibir el producto</span>
+                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Paga al recibir en tu domicilio</span>
               </label>
 
               {/* Option 3: Efectivo coordinado */}
-              <label className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center cursor-pointer transition-all ${
+              <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
                 formData.metodoPago === "Efectivo coordinado"
                   ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
-                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#faf8f5] text-[#2a3b26]"
+                  : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
               }`}>
                 <input
                   type="radio"
@@ -488,8 +498,120 @@ function CheckoutFormContent() {
                   className="sr-only"
                 />
                 <span className="text-xs font-bold block">Efectivo Coordinado</span>
-                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Efectivo en retiro convenido</span>
+                <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Efectivo en punto de encuentro</span>
               </label>
+
+              {/* Option 4: PayPal */}
+              {paymentConfig.ENABLE_PAYPAL && paymentConfig.PAYPAL_PAYMENT_LINK ? (
+                <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
+                  formData.metodoPago === "PayPal"
+                    ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
+                    : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
+                }`}>
+                  <input
+                    type="radio"
+                    name="metodoPago"
+                    value="PayPal"
+                    checked={formData.metodoPago === "PayPal"}
+                    onChange={handleInputChange}
+                    className="sr-only"
+                  />
+                  <span className="text-xs font-bold block">PayPal</span>
+                  <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Pagar con enlace de PayPal externo</span>
+                </label>
+              ) : (
+                <div className="flex flex-col items-start p-4 rounded-2xl border border-[#f2eee9] bg-[#faf8f5]/40 text-[#2a3b26]/50 cursor-not-allowed">
+                  <div className="flex justify-between w-full items-center">
+                    <span className="text-xs font-bold block text-[#2a3b26]/60">PayPal</span>
+                    <span className="text-[8px] bg-[#c5a059]/15 text-[#c5a059] border border-[#c5a059]/30 rounded px-1 font-bold">Próximamente</span>
+                  </div>
+                  <span className="text-[10px] text-[#2a3b26]/40 mt-0.5">Pagos online internacionales</span>
+                </div>
+              )}
+
+              {/* Option 5: Tarjeta de Crédito Online */}
+              {paymentConfig.ENABLE_CARD_GATEWAY ? (
+                <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
+                  formData.metodoPago === "Tarjeta de Crédito"
+                    ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
+                    : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
+                }`}>
+                  <input
+                    type="radio"
+                    name="metodoPago"
+                    value="Tarjeta de Crédito"
+                    checked={formData.metodoPago === "Tarjeta de Crédito"}
+                    onChange={handleInputChange}
+                    className="sr-only"
+                  />
+                  <span className="text-xs font-bold block">Tarjeta de Crédito</span>
+                  <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Pagar online con tarjeta local</span>
+                </label>
+              ) : (
+                <div className="flex flex-col items-start p-4 rounded-2xl border border-[#f2eee9] bg-[#faf8f5]/40 text-[#2a3b26]/50 cursor-not-allowed">
+                  <div className="flex justify-between w-full items-center">
+                    <span className="text-xs font-bold block text-[#2a3b26]/60">Tarjeta Online</span>
+                    <span className="text-[8px] bg-[#c5a059]/15 text-[#c5a059] border border-[#c5a059]/30 rounded px-1 font-bold">Próximamente</span>
+                  </div>
+                  <span className="text-[10px] text-[#2a3b26]/40 mt-0.5">Pagos con CardNET/Azul</span>
+                </div>
+              )}
+
+              {/* Option 6: Apple Pay */}
+              {paymentConfig.ENABLE_APPLE_PAY ? (
+                <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
+                  formData.metodoPago === "Apple Pay"
+                    ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
+                    : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
+                }`}>
+                  <input
+                    type="radio"
+                    name="metodoPago"
+                    value="Apple Pay"
+                    checked={formData.metodoPago === "Apple Pay"}
+                    onChange={handleInputChange}
+                    className="sr-only"
+                  />
+                  <span className="text-xs font-bold block">Apple Pay</span>
+                  <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Pago express desde Safari/iOS</span>
+                </label>
+              ) : (
+                <div className="flex flex-col items-start p-4 rounded-2xl border border-[#f2eee9] bg-[#faf8f5]/40 text-[#2a3b26]/50 cursor-not-allowed">
+                  <div className="flex justify-between w-full items-center">
+                    <span className="text-xs font-bold block text-[#2a3b26]/60">Apple Pay</span>
+                    <span className="text-[8px] bg-[#c5a059]/15 text-[#c5a059] border border-[#c5a059]/30 rounded px-1 font-bold">Próximamente</span>
+                  </div>
+                  <span className="text-[10px] text-[#2a3b26]/40 mt-0.5">Pago rápido en dispositivos Apple</span>
+                </div>
+              )}
+
+              {/* Option 7: Google Pay */}
+              {paymentConfig.ENABLE_GOOGLE_PAY ? (
+                <label className={`flex flex-col items-start p-4 rounded-2xl border cursor-pointer transition-all ${
+                  formData.metodoPago === "Google Pay"
+                    ? "border-[#c5a059] bg-[#f2eee9]/40 text-[#1e2d1a] font-bold"
+                    : "border-[#f2eee9] bg-[#faf8f5] hover:bg-[#f2eee9]/30 text-[#2a3b26]"
+                }`}>
+                  <input
+                    type="radio"
+                    name="metodoPago"
+                    value="Google Pay"
+                    checked={formData.metodoPago === "Google Pay"}
+                    onChange={handleInputChange}
+                    className="sr-only"
+                  />
+                  <span className="text-xs font-bold block">Google Pay</span>
+                  <span className="text-[10px] text-[#2a3b26]/70 mt-0.5">Pago express desde Chrome/Android</span>
+                </label>
+              ) : (
+                <div className="flex flex-col items-start p-4 rounded-2xl border border-[#f2eee9] bg-[#faf8f5]/40 text-[#2a3b26]/50 cursor-not-allowed">
+                  <div className="flex justify-between w-full items-center">
+                    <span className="text-xs font-bold block text-[#2a3b26]/60">Google Pay</span>
+                    <span className="text-[8px] bg-[#c5a059]/15 text-[#c5a059] border border-[#c5a059]/30 rounded px-1 font-bold">Próximamente</span>
+                  </div>
+                  <span className="text-[10px] text-[#2a3b26]/40 mt-0.5">Pago rápido en dispositivos Android</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -540,6 +662,12 @@ function CheckoutFormContent() {
           {/* Conditional Plan Details Display */}
           {formData.modalidadPago === "Plan Quincenal Clienta Fiel" && (
             <div className="p-4 rounded-2xl border border-[#c5a059]/20 bg-[#faf8f5] space-y-3">
+              <div className="text-xs text-[#3d2b1f]/90 leading-relaxed border-b border-[#f2eee9] pb-2">
+                <span className="font-bold text-[#c5a059] block mb-1">🌿 Plan Quincenal Clienta Fiel</span>
+                <p>
+                  Disponible solo para clientas fieles aprobadas. Pago máximo en 30 días: cuota 1 a los 15 días y cuota 2 a los 30 días.
+                </p>
+              </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#c5a059] block">
                 Detalles del Plan Quincenal
               </span>
@@ -585,6 +713,14 @@ function CheckoutFormContent() {
               placeholder="Horarios de entrega preferidos, instrucciones adicionales..."
               className="w-full px-4 py-2.5 rounded-xl border border-[#f2eee9] text-xs bg-[#faf8f5] focus:outline-none focus:border-[#c5a059] resize-none"
             />
+          </div>
+
+          {/* WhatsApp confirmation note */}
+          <div className="p-4 rounded-2xl border border-[#c5a059]/20 bg-[#faf8f5] text-[#3d2b1f] text-xs space-y-1">
+            <span className="font-bold text-[#c5a059] block">📌 Nota de Confirmación</span>
+            <p className="leading-relaxed">
+              Por ahora, tu pedido se confirma por WhatsApp. Ivette te indicará disponibilidad, método de entrega y forma de pago.
+            </p>
           </div>
 
           <button

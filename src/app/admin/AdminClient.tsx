@@ -134,7 +134,65 @@ export function AdminClient({ data }: { data: CapilarDashboardData }) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-crm-faint">
           Registro de Ventas ({filteredSales.length})
         </p>
-        <div className="overflow-hidden rounded-xl border border-crm-line bg-crm-surface">
+
+        {/* Mobile View: Cards */}
+        <div className="block sm:hidden space-y-3">
+          {filteredSales.map((sale) => (
+            <div
+              key={sale.ventaId}
+              className="rounded-2xl border border-crm-line bg-crm-surface p-4 space-y-3 text-sm text-crm-text shadow-sm"
+            >
+              <div className="flex items-center justify-between border-b border-crm-line pb-2">
+                <div>
+                  <span className="font-extrabold text-crm-gold">#{sale.ventaId}</span>
+                  <span className="text-xs text-crm-faint ml-2">{saleDate(sale)}</span>
+                </div>
+                <div>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    sale.montoRestante <= 0
+                      ? "bg-crm-green/15 text-crm-green"
+                      : "bg-crm-amber/15 text-crm-amber"
+                  }`}>
+                    {sale.montoRestante <= 0 ? "Saldado" : `Saldo: ${formatDop(sale.montoRestante)}`}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p className="text-crm-faint">Cliente</p>
+                  <p className="font-bold text-crm-text">{sale.nombreCliente}</p>
+                  {sale.whatsapp && (
+                    <p className="text-crm-muted truncate mt-0.5">{sale.whatsapp}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-crm-faint">Ubicación</p>
+                  <p className="font-medium text-crm-muted mt-0.5">{sale.provincia || "No especificada"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-crm-line/50 text-xs">
+                <div className="truncate pr-2">
+                  <span className="text-crm-faint">Detalle: </span>
+                  <span className="font-medium text-crm-muted">{sale.familiaProducto}</span>
+                </div>
+                <div className="shrink-0">
+                  <span className="text-crm-faint">Total: </span>
+                  <span className="font-extrabold text-crm-gold text-sm">{formatDop(sale.totalVenta)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {filteredSales.length === 0 && (
+            <div className="text-center py-8 text-crm-muted border border-dashed border-crm-line rounded-2xl bg-crm-surface text-xs">
+              No hay ventas en este período.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden sm:block overflow-hidden rounded-xl border border-crm-line bg-crm-surface">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-crm-line bg-crm-surface2 text-xs uppercase text-crm-muted">

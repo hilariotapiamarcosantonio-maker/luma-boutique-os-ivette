@@ -36,16 +36,16 @@ export function StoreHeader() {
     <>
       <header className="sticky top-0 z-40 w-full border-b border-[#f2eee9] bg-[#faf8f5]/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
+          <div className="flex h-20 md:h-24 items-center justify-between">
             {/* Logo */}
             <div className="flex">
-              <Link href="/" className="flex shrink-0 items-center gap-2">
-                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-10 w-10 object-contain bg-[#2a3b26] border border-[#c5a059] rounded-full p-1 shadow-sm" />
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.24em] text-[#3d2b1f] leading-none">
+              <Link href="/" className="flex shrink-0 items-center gap-2.5">
+                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-14 w-14 md:h-[72px] md:w-[72px] object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1 shadow-md transition-all duration-300 hover:scale-105" />
+                <div className="flex flex-col justify-center">
+                  <span className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-[0.24em] text-[#3d2b1f] leading-none">
                     IVETTE <span className="text-[#c5a059]">BERROA</span>
                   </span>
-                  <span className="text-[8px] font-medium tracking-[0.1em] text-[#3d2b1f]/65 mt-0.5">
+                  <span className="text-[8px] md:text-[9px] font-semibold tracking-[0.12em] text-[#3d2b1f]/75 mt-1 uppercase">
                     Cosmética Ancestral
                   </span>
                 </div>

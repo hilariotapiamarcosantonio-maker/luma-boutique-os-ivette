@@ -78,11 +78,16 @@ export function StoreFooter() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo & Tagline */}
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Ivette Berroa Logo" className="h-10 w-10 object-contain bg-[#2a3b26] border border-[#c5a059] rounded-full p-1 shadow-sm" />
-              <span className="text-sm font-bold uppercase tracking-[0.24em] text-[#faf8f5]">
-                IVETTE <span className="text-[#c5a059]">BERROA</span>
-              </span>
+            <div className="flex items-center gap-3.5">
+              <img src="/logo.png" alt="Ivette Berroa Logo" className="h-16 w-16 md:h-20 md:w-20 object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1 shadow-md hover:scale-105 transition-transform duration-300" />
+              <div className="flex flex-col">
+                <span className="text-sm md:text-base font-bold uppercase tracking-[0.24em] text-[#faf8f5] leading-none">
+                  IVETTE <span className="text-[#c5a059]">BERROA</span>
+                </span>
+                <span className="text-[9px] font-semibold tracking-[0.12em] text-[#f2eee9]/60 mt-1.5 uppercase">
+                  Cosmética Ancestral
+                </span>
+              </div>
             </div>
             <p className="max-w-md text-xs text-[#f2eee9]/70 leading-relaxed">
               {niche.subtitleHero}
@@ -184,8 +189,8 @@ export function StoreFooter() {
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-12 border-t border-[#2a3b26] pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-1">
+        <div className="mt-12 border-t border-[#2a3b26] pt-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1 text-center md:text-left">
             <p className="text-[11px] text-[#f2eee9]/70">
               &copy; {year} {niche.name} - Todos los derechos reservados.
             </p>
@@ -194,21 +199,32 @@ export function StoreFooter() {
             </p>
           </div>
           
-          <div className="flex items-center gap-4">
-            {process.env.NEXT_PUBLIC_SHOW_INTERNAL_ACCESS === "true" && (
-              <>
-                <Link 
-                  href="/admin/dashboard" 
-                  className="text-[10px] text-[#f2eee9]/50 hover:text-[#c5a059] tracking-wider uppercase font-semibold transition-colors"
-                >
-                  Acceso Interno
-                </Link>
-                <span className="text-[#2a3b26]">|</span>
-              </>
-            )}
-            <span className="text-[11px] text-[#f2eee9]/50 tracking-wider uppercase font-semibold">
-              Powered by Ivette Berroa
-            </span>
+          <div className="text-center space-y-0.5 shrink-0">
+            <p className="text-[10px] text-[#c5a059] font-medium tracking-wide">
+              Desarrollado por <span className="font-bold">Marcos Hilario</span>
+            </p>
+            <p className="text-[9px] text-[#f2eee9]/40">
+              &copy; 2026 Marcos Hilario. Arquitectura Digital de Alto Rendimiento.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center md:items-end gap-2 shrink-0">
+            <div className="flex items-center gap-3">
+              {process.env.NEXT_PUBLIC_SHOW_INTERNAL_ACCESS === "true" && (
+                <>
+                  <Link 
+                    href="/admin/dashboard" 
+                    className="text-[10px] text-[#f2eee9]/50 hover:text-[#c5a059] tracking-wider uppercase font-semibold transition-colors"
+                  >
+                    Acceso Interno
+                  </Link>
+                  <span className="text-[#2a3b26]">|</span>
+                </>
+              )}
+              <span className="text-[11px] text-[#f2eee9]/50 tracking-wider uppercase font-semibold">
+                Powered by Ivette Berroa
+              </span>
+            </div>
           </div>
         </div>
       </div>

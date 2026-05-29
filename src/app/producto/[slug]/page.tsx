@@ -304,13 +304,19 @@ export default function StoreProductDetails({ params }: ProductPageProps) {
               return (
                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {related.map((item) => (
-                    <Link
+                    <div
                       key={item.id}
-                      href={`/producto/${item.slug}`}
                       className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#f2eee9] bg-[#faf8f5] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-[#c5a059]/20 min-h-[410px]"
                     >
+                      {/* Invisible main overlay Link */}
+                      <Link
+                        href={`/producto/${item.slug}`}
+                        className="absolute inset-0 z-0"
+                        aria-label={item.name}
+                      />
+
                       {/* Image */}
-                      <div className="h-52 w-full bg-[#f2eee9] flex items-center justify-center relative overflow-hidden border-b border-[#f2eee9]/40">
+                      <div className="h-52 w-full bg-[#f2eee9] flex items-center justify-center relative overflow-hidden border-b border-[#f2eee9]/40 pointer-events-none">
                         {item.badge && (
                           <span className="absolute top-4 left-4 bg-[#faf8f5]/95 backdrop-blur-sm border border-[#f2eee9] text-[#c5a059] text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm z-10">
                             {item.badge}
@@ -325,7 +331,7 @@ export default function StoreProductDetails({ params }: ProductPageProps) {
                         />
                       </div>
                       {/* Details */}
-                      <div className="flex flex-1 flex-col p-5 space-y-2 justify-between">
+                      <div className="flex flex-1 flex-col p-5 space-y-2 justify-between relative z-10 pointer-events-none">
                         <div className="space-y-2">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-[#A8A29E]">
                             {item.category}
@@ -337,18 +343,18 @@ export default function StoreProductDetails({ params }: ProductPageProps) {
                             {item.shortDescription}
                           </p>
                         </div>
-                        <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto">
-                          <span className="text-xs font-bold text-[#c5a059]">
+                        <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto pointer-events-auto">
+                          <span className="text-xs font-bold text-[#c5a059] pointer-events-none">
                             RD$ {item.price.toLocaleString()}
                           </span>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 relative z-20">
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 addItem(item, 1);
                               }}
-                              className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#f2eee9] text-[#c5a059] hover:bg-[#c5a059] hover:text-white transition-all text-xs font-bold gap-1 z-10"
+                              className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#f2eee9] text-[#c5a059] hover:bg-[#c5a059] hover:text-white transition-all text-xs font-bold gap-1"
                             >
                               <Plus className="h-3 w-3" />
                               Añadir
@@ -366,7 +372,7 @@ export default function StoreProductDetails({ params }: ProductPageProps) {
                           </div>
                         </div>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               );

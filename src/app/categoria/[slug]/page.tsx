@@ -66,13 +66,19 @@ export default function StoreCategory({ params }: CategoryPageProps) {
           {categoryProducts.length > 0 ? (
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {categoryProducts.map((product) => (
-                <Link
+                <div
                   key={product.id}
-                  href={`/producto/${product.slug}`}
                   className="group relative flex flex-col overflow-hidden rounded-2xl border border-[#E7E5E4] bg-white transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-[#C7A45A]/30 min-h-[430px]"
                 >
+                  {/* Invisible main overlay Link */}
+                  <Link
+                    href={`/producto/${product.slug}`}
+                    className="absolute inset-0 z-0"
+                    aria-label={product.name}
+                  />
+
                   {/* Image Container with ProductVisual */}
-                  <div className="h-56 w-full bg-[#FAFAF9] flex items-center justify-center relative overflow-hidden border-b border-[#E7E5E4]/40">
+                  <div className="h-56 w-full bg-[#FAFAF9] flex items-center justify-center relative overflow-hidden border-b border-[#E7E5E4]/40 pointer-events-none">
                     {product.badge && (
                       <span className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm border border-[#E7E5E4] text-[#8C6D30] text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm z-10">
                         {product.badge}
@@ -88,7 +94,7 @@ export default function StoreCategory({ params }: CategoryPageProps) {
                   </div>
 
                   {/* Info */}
-                  <div className="flex flex-1 flex-col p-5 space-y-2 justify-between">
+                  <div className="flex flex-1 flex-col p-5 space-y-2 justify-between relative z-10 pointer-events-none">
                     <div className="space-y-2">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-[#A8A29E]">
                         {product.category}
@@ -102,8 +108,8 @@ export default function StoreCategory({ params }: CategoryPageProps) {
                     </div>
 
                     {/* Price and Details */}
-                    <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto">
-                      <div>
+                    <div className="pt-4 flex items-center justify-between border-t border-[#F5F5F4] mt-auto pointer-events-auto">
+                      <div className="pointer-events-none">
                         {product.priceBefore && (
                           <span className="block text-[10px] text-[#A8A29E] line-through">
                             RD$ {product.priceBefore.toLocaleString()}
@@ -114,14 +120,14 @@ export default function StoreCategory({ params }: CategoryPageProps) {
                         </span>
                       </div>
                       
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 relative z-20">
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             addItem(product, 1);
                           }}
-                          className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#F5F2EB] text-[#8C6D30] hover:bg-[#C7A45A] hover:text-white transition-all text-xs font-bold gap-1 z-10"
+                          className="inline-flex h-8 px-3 items-center justify-center rounded-full bg-[#F5F2EB] text-[#8C6D30] hover:bg-[#C7A45A] hover:text-white transition-all text-xs font-bold gap-1"
                         >
                           <Plus className="h-3 w-3" />
                           Añadir
@@ -134,7 +140,7 @@ export default function StoreCategory({ params }: CategoryPageProps) {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           ) : (
