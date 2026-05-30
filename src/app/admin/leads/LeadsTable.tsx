@@ -65,6 +65,12 @@ interface Lead {
   observaciones?: string;
   clienteFiel?: string; // "true" or "false"
   estadoPlan?: string;
+  estadoPago?: string;
+  saldoPendiente?: number;
+  proximaFechaPago?: string;
+  fechaConfirmacion?: string;
+  fechaPagoCompleto?: string;
+  fechaEntrega?: string;
 }
 
 interface Contact {
@@ -233,12 +239,25 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
   const config = getCommerceConfig();
 
   // Leads State & Filters
+  const [leads, setLeads] = useState(initialLeads);
   const [leadsSearchQuery, setLeadsSearchQuery] = useState("");
   const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [planStatusFilter, setPlanStatusFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  // Payment operations modal states
+  const [paymentActionModal, setPaymentActionModal] = useState<{
+    lead: Lead;
+    action: string;
+    expectedAmount: number;
+  } | null>(null);
+  const [paymentAmountInput, setPaymentAmountInput] = useState<string>("");
+  const [paymentDateInput, setPaymentDateInput] = useState<string>("");
+  const [paymentNotesInput, setPaymentNotesInput] = useState<string>("");
+  const [paymentActionSaving, setPaymentActionSaving] = useState<boolean>(false);
+  const [paymentWarning, setPaymentWarning] = useState<string | null>(null);
 
   // Contacts State & Filters
   const [contacts, setContacts] = useState(initialContacts);
@@ -275,13 +294,13 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
   const [copiedText, setCopiedText] = useState(false);
 
   // Compute leads
-  const hasRealStoreLeads = initialLeads.some(
+  const hasRealStoreLeads = leads.some(
     (l) => l.origen === "tienda_botanica" || l.origen === "tienda_capilar" || l.itemsSummary
   );
   
   const baseLeads = (demoModeActive && !hasRealStoreLeads) 
     ? MOCK_DEMO_LEADS 
-    : initialLeads;
+    : leads;
 
   // Filter leads
   const filteredLeads = baseLeads.filter((lead) => {
@@ -456,6 +475,181 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
       setFollowUpStatus("No se pudo guardar. Verifica acceso al Google Sheet.");
     } finally {
       setFollowUpSaving(false);
+    }
+  };
+
+  const openPaymentActionModal = (lead: Lead, action: string) => {
+    const total = lead.total || 0;
+    let expected = total;
+    if (action === "registrar_cuota_1") {
+      expected = lead.cuota1 || (total / 2);
+    } else if (action === "registrar_cuota_2") {
+      expected = lead.cuota2 || (total - (lead.cuota1 || (total / 2)));
+    } else if (action === "registrar_pago_completo") {
+      const isPlan = lead.modalidadPago === "Plan Quincenal" || lead.modalidadPago === "Plan Quincenal Clienta Fiel";
+      expected = isPlan ? getRemainingAmount(lead) : total;
+    }
+    
+    setPaymentActionModal({
+      lead,
+      action,
+      expectedAmount: expected,
+    });
+    setPaymentAmountInput(String(expected));
+    setPaymentDateInput(new Date().toISOString().split("T")[0]);
+    setPaymentNotesInput("");
+    setPaymentWarning(null);
+  };
+
+  const executePaymentAction = async (force = false) => {
+    if (!paymentActionModal) return;
+    const { lead, action, expectedAmount } = paymentActionModal;
+    
+    const amount = Number(paymentAmountInput);
+    const isPaymentAction = ["registrar_pago_completo", "registrar_cuota_1", "registrar_cuota_2"].includes(action);
+    
+    if (isPaymentAction) {
+      if (!paymentAmountInput || isNaN(amount) || amount <= 0) {
+        alert("El monto recibido debe ser un número positivo.");
+        return;
+      }
+
+      if (amount !== expectedAmount && !paymentWarning) {
+        setPaymentWarning(`El monto ingresado (RD$ ${amount.toLocaleString()}) no coincide con el monto esperado (RD$ ${expectedAmount.toLocaleString()}). ¿Deseas continuar de todos modos?`);
+        return;
+      }
+    }
+
+    setPaymentActionSaving(true);
+    try {
+      const response = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedidoId: lead.id,
+          action,
+          montoRecibido: isPaymentAction ? amount : undefined,
+          fecha: paymentDateInput,
+          nota: paymentNotesInput,
+          force,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        if (result.warning) {
+          if (confirm(result.error)) {
+            setPaymentActionSaving(false);
+            executePaymentAction(true);
+            return;
+          } else {
+            setPaymentActionSaving(false);
+            return;
+          }
+        }
+        throw new Error(result.error || "Error al actualizar el pedido");
+      }
+
+      const updatedFields = result.updatedFields;
+      setLeads((current) =>
+        current.map((item) => {
+          if (item.id === lead.id) {
+            const updated = {
+              ...item,
+              estado: updatedFields.estado_pedido !== undefined ? updatedFields.estado_pedido : item.estado,
+              estadoPago: updatedFields.estado_pago !== undefined ? updatedFields.estado_pago : item.estadoPago,
+              saldoPendiente: updatedFields.saldo_pendiente !== undefined ? updatedFields.saldo_pendiente : item.saldoPendiente,
+              proximaFechaPago: updatedFields.proxima_fecha_pago !== undefined ? updatedFields.proxima_fecha_pago : item.proximaFechaPago,
+              fechaConfirmacion: updatedFields.fecha_confirmacion !== undefined ? updatedFields.fecha_confirmacion : item.fechaConfirmacion,
+              fechaPagoCompleto: updatedFields.fecha_pago_completo !== undefined ? updatedFields.fecha_pago_completo : item.fechaPagoCompleto,
+              fechaEntrega: updatedFields.fecha_entrega !== undefined ? updatedFields.fecha_entrega : item.fechaEntrega,
+              estadoPlan: updatedFields.estado_pago !== undefined ? (updatedFields.estado_pago === "Pagado" ? "Completado" : (updatedFields.estado_pago === "Cuota 1 pagada" ? "Cuota 2 pendiente" : "Cuota 1 pendiente")) : item.estadoPlan,
+            };
+            if (selectedLead && selectedLead.id === lead.id) {
+              setSelectedLead(updated);
+            }
+            return updated;
+          }
+          return item;
+        })
+      );
+
+      setPaymentActionModal(null);
+      setPaymentWarning(null);
+      setPaymentAmountInput("");
+      setPaymentNotesInput("");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al procesar la acción";
+      alert(errorMsg);
+    } finally {
+      setPaymentActionSaving(false);
+    }
+  };
+
+  const handleWorkflowAction = async (lead: Lead, action: string) => {
+    let confirmMsg = "";
+    if (action === "confirmar_venta") confirmMsg = `¿Confirmar la venta del pedido ${lead.id} de ${lead.nombre}?`;
+    else if (action === "preparando") confirmMsg = `¿Marcar el pedido ${lead.id} como Preparando?`;
+    else if (action === "entregado") confirmMsg = `¿Marcar el pedido ${lead.id} como Entregado?`;
+    else if (action === "cancelar") confirmMsg = `¿Está seguro de que desea CANCELAR el pedido ${lead.id}? Esta acción no se puede deshacer.`;
+    
+    if (confirmMsg && !confirm(confirmMsg)) return;
+
+    try {
+      const response = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedidoId: lead.id,
+          action,
+          fecha: new Date().toISOString().split("T")[0],
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Error al actualizar estado");
+
+      const updatedFields = result.updatedFields;
+      setLeads((current) =>
+        current.map((item) => {
+          if (item.id === lead.id) {
+            const updated = {
+              ...item,
+              estado: updatedFields.estado_pedido !== undefined ? updatedFields.estado_pedido : item.estado,
+              estadoPago: updatedFields.estado_pago !== undefined ? updatedFields.estado_pago : item.estadoPago,
+              saldoPendiente: updatedFields.saldo_pendiente !== undefined ? updatedFields.saldo_pendiente : item.saldoPendiente,
+              proximaFechaPago: updatedFields.proxima_fecha_pago !== undefined ? updatedFields.proxima_fecha_pago : item.proximaFechaPago,
+              fechaConfirmacion: updatedFields.fecha_confirmacion !== undefined ? updatedFields.fecha_confirmacion : item.fechaConfirmacion,
+              fechaPagoCompleto: updatedFields.fecha_pago_completo !== undefined ? updatedFields.fecha_pago_completo : item.fechaPagoCompleto,
+              fechaEntrega: updatedFields.fecha_entrega !== undefined ? updatedFields.fecha_entrega : item.fechaEntrega,
+              estadoPlan: updatedFields.estado_pago !== undefined ? (updatedFields.estado_pago === "Pagado" ? "Completado" : (updatedFields.estado_pago === "Cuota 1 pagada" ? "Cuota 2 pendiente" : "Cuota 1 pendiente")) : item.estadoPlan,
+            };
+            if (selectedLead && selectedLead.id === lead.id) {
+              setSelectedLead(updated);
+            }
+            return updated;
+          }
+          return item;
+        })
+      );
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al procesar la acción";
+      alert(errorMsg);
+    }
+  };
+
+  const handleRegisterPaymentClick = (lead: Lead) => {
+    const isPlan = lead.modalidadPago === "Plan Quincenal" || lead.modalidadPago === "Plan Quincenal Clienta Fiel";
+    if (isPlan) {
+      if (lead.estadoPlan === "Cuota 1 pendiente" || !lead.estadoPlan || lead.estadoPlan === "Pendiente inicio") {
+        openPaymentActionModal(lead, "registrar_cuota_1");
+      } else if (lead.estadoPlan === "Cuota 2 pendiente" || lead.estadoPlan === "Cuota 1 pagada") {
+        openPaymentActionModal(lead, "registrar_cuota_2");
+      } else {
+        openPaymentActionModal(lead, "registrar_pago_completo");
+      }
+    } else {
+      openPaymentActionModal(lead, "registrar_pago_completo");
     }
   };
 
@@ -928,10 +1122,42 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
 
                             {/* Actions */}
                             <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap max-w-[280px] ml-auto">
+                                {(lead.estado === "Nuevo" || lead.estado === "Contactado") && (
+                                  <button
+                                    onClick={() => handleWorkflowAction(lead, "confirmar_venta")}
+                                    className="bg-crm-gold/25 text-crm-gold border border-crm-gold/40 hover:bg-crm-gold hover:text-white px-2.5 py-1.5 rounded text-[11px] font-bold transition-all shadow-sm"
+                                  >
+                                    Confirmar
+                                  </button>
+                                )}
+                                {lead.estado === "Confirmado" && (
+                                  <>
+                                    <button
+                                      onClick={() => handleRegisterPaymentClick(lead)}
+                                      className="bg-crm-teal/25 text-crm-teal border border-crm-teal/40 hover:bg-crm-teal hover:text-white px-2.5 py-1.5 rounded text-[11px] font-bold transition-all shadow-sm"
+                                    >
+                                      Pago
+                                    </button>
+                                    <button
+                                      onClick={() => handleWorkflowAction(lead, "preparando")}
+                                      className="bg-orange-500/20 text-orange-400 border border-orange-500/40 hover:bg-orange-500 hover:text-white px-2.5 py-1.5 rounded text-[11px] font-bold transition-all shadow-sm"
+                                    >
+                                      Preparando
+                                    </button>
+                                  </>
+                                )}
+                                {lead.estado === "Preparando" && (
+                                  <button
+                                    onClick={() => handleWorkflowAction(lead, "entregado")}
+                                    className="bg-teal-500/20 text-teal-400 border border-teal-500/40 hover:bg-teal-500 hover:text-white px-2.5 py-1.5 rounded text-[11px] font-bold transition-all shadow-sm"
+                                  >
+                                    Entregado
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setSelectedLead(lead)}
-                                  className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
+                                  className="px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all text-[11px]"
                                 >
                                   Detalle
                                 </button>
@@ -939,18 +1165,11 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                                   href={waUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded bg-[#25D366] hover:bg-[#20ba56] text-white font-bold transition-all shadow-sm text-[11px]"
                                 >
                                   <MessageSquare className="h-3.5 w-3.5 fill-current shrink-0" />
                                   WhatsApp
                                 </a>
-                                <button
-                                  onClick={() => handleCopyMessage(leadMessage)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-crm-line bg-crm-surface hover:bg-crm-surface2 text-crm-text font-bold transition-all"
-                                >
-                                  <Copy className="h-3.5 w-3.5 shrink-0" />
-                                  Copiar
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1666,6 +1885,147 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                 </div>
               )}
 
+              {/* OPERACIONES DE TRABAJO Y COBRO (COMMAND CENTER) */}
+              <div className="space-y-3 bg-crm-surface2/60 border border-crm-line p-5 rounded-2xl">
+                <h3 className="text-xs font-bold text-crm-muted uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-crm-line">
+                  <Sparkles className="h-3.5 w-3.5 text-crm-gold" />
+                  Operaciones del Pedido & Pagos
+                </h3>
+                
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {/* Confirmar Venta */}
+                  {(selectedLead.estado === "Nuevo" || selectedLead.estado === "Contactado") && (
+                    <button
+                      onClick={() => handleWorkflowAction(selectedLead, "confirmar_venta")}
+                      className="bg-crm-gold hover:bg-crm-gold/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    >
+                      Confirmar Venta
+                    </button>
+                  )}
+
+                  {/* Registrar Pago Completo */}
+                  {selectedLead.estadoPago !== "Pagado" && (
+                    <button
+                      onClick={() => openPaymentActionModal(selectedLead, "registrar_pago_completo")}
+                      className="bg-crm-teal hover:bg-crm-teal/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    >
+                      Registrar Pago Completo
+                    </button>
+                  )}
+
+                  {/* Plan Quincenal specific installments */}
+                  {(selectedLead.modalidadPago === "Plan Quincenal" || selectedLead.modalidadPago === "Plan Quincenal Clienta Fiel") && (
+                    <>
+                      {(selectedLead.estadoPlan === "Cuota 1 pendiente" || !selectedLead.estadoPlan || selectedLead.estadoPlan === "Pendiente inicio") && (
+                        <button
+                          onClick={() => openPaymentActionModal(selectedLead, "registrar_cuota_1")}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                        >
+                          Registrar Cuota 1
+                        </button>
+                      )}
+                      
+                      {(selectedLead.estadoPlan === "Cuota 2 pendiente" || selectedLead.estadoPlan === "Cuota 1 pagada") && (
+                        <button
+                          onClick={() => openPaymentActionModal(selectedLead, "registrar_cuota_2")}
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                        >
+                          Registrar Cuota 2
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* Preparando */}
+                  {selectedLead.estado === "Confirmado" && (
+                    <button
+                      onClick={() => handleWorkflowAction(selectedLead, "preparando")}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    >
+                      Marcar Preparando
+                    </button>
+                  )}
+
+                  {/* Entregado */}
+                  {selectedLead.estado === "Preparando" && (
+                    <button
+                      onClick={() => handleWorkflowAction(selectedLead, "entregado")}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    >
+                      Marcar Entregado
+                    </button>
+                  )}
+
+                  {/* Cancelar */}
+                  {selectedLead.estado !== "Cancelado" && selectedLead.estado !== "Entregado" && (
+                    <button
+                      onClick={() => handleWorkflowAction(selectedLead, "cancelar")}
+                      className="bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                    >
+                      Cancelar Pedido
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* QUICK WHATSAPP TEMPLATES DRAWER */}
+              <div className="space-y-3 bg-crm-surface2/50 border border-crm-line p-5 rounded-2xl">
+                <h3 className="text-xs font-bold text-crm-muted uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-crm-line">
+                  <MessageSquare className="h-3.5 w-3.5 text-[#25D366]" />
+                  Mensajes Rápidos de WhatsApp
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      const msg = `Hola ${selectedLead.nombre}! Te escribimos de Ivette Berroa 🌿. Queremos coordinar el cobro completo de tu pedido de RD$ ${(selectedLead.total || 0).toLocaleString()}. ¿Nos confirmas cuándo podríamos programarlo?`;
+                      window.open(buildWhatsAppContactLink(selectedLead.whatsapp, msg), "_blank");
+                    }}
+                    className="p-3 text-left border border-crm-line bg-crm-surface hover:bg-crm-surface3 rounded-xl transition-all text-xs flex flex-col justify-between"
+                  >
+                    <span className="font-bold text-crm-text">Cobro Pago Completo</span>
+                    <span className="text-[10px] text-crm-faint mt-1 line-clamp-1">Enviar recordatorio de cobro de pago único</span>
+                  </button>
+
+                  {(selectedLead.modalidadPago === "Plan Quincenal" || selectedLead.modalidadPago === "Plan Quincenal Clienta Fiel") && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const msg = `Hola ${selectedLead.nombre}! 🌿 Queremos recordarte que el pago de la Cuota 1 (RD$ ${(selectedLead.cuota1 || 0).toLocaleString()}) de tu Plan Quincenal vence el ${selectedLead.fechaCuota1 || "la fecha acordada"}. ¿Nos avisas al realizar la transferencia?`;
+                          window.open(buildWhatsAppContactLink(selectedLead.whatsapp, msg), "_blank");
+                        }}
+                        className="p-3 text-left border border-crm-line bg-crm-surface hover:bg-crm-surface3 rounded-xl transition-all text-xs flex flex-col justify-between"
+                      >
+                        <span className="font-bold text-crm-text">Recordatorio Cuota 1</span>
+                        <span className="text-[10px] text-crm-faint mt-1 line-clamp-1">Vencimiento primera cuota quincenal</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const msg = `Hola ${selectedLead.nombre}! 🌿 Queremos recordarte que el pago de la Cuota 2 (RD$ ${(selectedLead.cuota2 || 0).toLocaleString()}) de tu Plan Quincenal vence el ${selectedLead.fechaCuota2 || "la fecha acordada"}. Con este abono completas tu cuenta! Quedamos atentos.`;
+                          window.open(buildWhatsAppContactLink(selectedLead.whatsapp, msg), "_blank");
+                        }}
+                        className="p-3 text-left border border-crm-line bg-crm-surface hover:bg-crm-surface3 rounded-xl transition-all text-xs flex flex-col justify-between"
+                      >
+                        <span className="font-bold text-crm-text">Recordatorio Cuota 2</span>
+                        <span className="text-[10px] text-crm-faint mt-1 line-clamp-1">Vencimiento segunda cuota quincenal</span>
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      const msg = `Hola ${selectedLead.nombre}! 🌿 Tu pedido de cosmética ancestral ya está listo para despacho. ¿Nos confirmas si habrá alguien en ${selectedLead.direccion || "tu dirección"} para recibirlo?`;
+                      window.open(buildWhatsAppContactLink(selectedLead.whatsapp, msg), "_blank");
+                    }}
+                    className="p-3 text-left border border-crm-line bg-crm-surface hover:bg-crm-surface3 rounded-xl transition-all text-xs flex flex-col justify-between"
+                  >
+                    <span className="font-bold text-crm-text">Coordinación de Entrega</span>
+                    <span className="text-[10px] text-crm-faint mt-1 line-clamp-1">Coordinar despacho y recepción del envío</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             {/* Footer */}
@@ -2065,6 +2425,122 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                   Enviar WhatsApp
                 </a>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMATION / PAYMENT DIALOGUE MODAL */}
+      {paymentActionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-crm-surface border border-crm-line w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 my-auto">
+            {/* Header */}
+            <div className="border-b border-crm-line bg-crm-surface2 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-extrabold text-crm-text flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-crm-gold" />
+                  Confirmar Operación de Pago
+                </h2>
+                <p className="text-[11px] text-crm-faint mt-0.5">
+                  Pedido: {paymentActionModal.lead.id}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setPaymentActionModal(null);
+                  setPaymentWarning(null);
+                }}
+                className="rounded-full border border-crm-line bg-crm-surface px-2.5 py-1 text-crm-muted hover:text-crm-text hover:bg-crm-surface2 transition-all text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 text-xs text-crm-text">
+              <div className="bg-crm-surface2 border border-crm-line rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-crm-faint">Cliente:</span>
+                  <span className="font-bold">{paymentActionModal.lead.nombre} {paymentActionModal.lead.apellido || ""}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-crm-faint">Acción:</span>
+                  <span className="font-bold text-crm-gold uppercase">{paymentActionModal.action.replace(/_/g, " ")}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-crm-faint">Monto esperado:</span>
+                  <span className="font-bold text-crm-teal font-mono">RD$ {paymentActionModal.expectedAmount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Amount Inputs for actual payment actions */}
+              {["registrar_pago_completo", "registrar_cuota_1", "registrar_cuota_2"].includes(paymentActionModal.action) && (
+                <div className="space-y-3">
+                  <label className="block space-y-1">
+                    <span className="font-bold text-crm-muted">Monto Recibido (RD$):</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={paymentAmountInput}
+                      onChange={(e) => {
+                        setPaymentAmountInput(e.target.value);
+                        setPaymentWarning(null);
+                      }}
+                      className="w-full rounded-xl border border-crm-line bg-crm-bg px-3.5 py-2 text-xs text-crm-text outline-none focus:border-crm-gold transition-colors font-mono"
+                    />
+                  </label>
+
+                  <label className="block space-y-1">
+                    <span className="font-bold text-crm-muted">Fecha del Pago:</span>
+                    <input
+                      type="date"
+                      required
+                      value={paymentDateInput}
+                      onChange={(e) => setPaymentDateInput(e.target.value)}
+                      className="w-full rounded-xl border border-crm-line bg-crm-bg px-3.5 py-2 text-xs text-crm-text outline-none focus:border-crm-gold transition-colors font-mono"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <label className="block space-y-1">
+                <span className="font-bold text-crm-muted">Nota opcional:</span>
+                <textarea
+                  rows={2}
+                  value={paymentNotesInput}
+                  onChange={(e) => setPaymentNotesInput(e.target.value)}
+                  placeholder="Escribe detalles adicionales sobre esta operación..."
+                  className="w-full rounded-xl border border-crm-line bg-crm-bg px-3.5 py-2 text-xs text-crm-text outline-none focus:border-crm-gold transition-colors resize-none"
+                />
+              </label>
+
+              {paymentWarning && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300 font-medium">
+                  {paymentWarning}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-crm-line bg-crm-surface2 px-6 py-4 flex justify-end gap-2.5">
+              <button
+                onClick={() => {
+                  setPaymentActionModal(null);
+                  setPaymentWarning(null);
+                }}
+                className="rounded-full border border-crm-line bg-crm-surface hover:bg-crm-surface3 text-crm-muted px-5 py-2 text-xs font-bold transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => executePaymentAction(false)}
+                disabled={paymentActionSaving}
+                className="rounded-full bg-crm-gold hover:bg-crm-gold/90 text-white px-5 py-2 text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+              >
+                {paymentActionSaving ? "Procesando..." : "Confirmar & Guardar"}
+              </button>
             </div>
           </div>
         </div>

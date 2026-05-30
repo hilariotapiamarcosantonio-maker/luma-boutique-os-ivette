@@ -40,7 +40,9 @@ export function StoreHeader() {
             {/* Logo */}
             <div className="flex">
               <Link href="/" className="flex shrink-0 items-center gap-2.5">
-                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-16 w-16 md:h-20 md:w-20 object-contain bg-transparent border-2 border-[#c5a059] rounded-full p-[2px] shadow-md transition-all duration-300 hover:scale-105" />
+                <div className="relative h-16 w-16 md:h-20 md:w-20 shrink-0 rounded-full border-2 border-[#c5a059] bg-[#2a3b26] overflow-hidden shadow-md transition-all duration-300 hover:scale-105">
+                  <img src="/brand/ivette-logo-ui.png" alt="Ivette Berroa Logo" className="absolute inset-0 h-full w-full object-contain scale-[1.35]" />
+                </div>
                 <div className="flex flex-col justify-center">
                   <span className="text-xs sm:text-sm md:text-base font-bold uppercase tracking-[0.24em] text-[#faf8f5] leading-none">
                     IVETTE <span className="text-[#c5a059]">BERROA</span>

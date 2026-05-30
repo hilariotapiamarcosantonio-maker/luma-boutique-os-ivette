@@ -5,6 +5,7 @@ import {
   listPagosQuincenales,
   listPedidos,
   listProductos,
+  ensureSheetHeaders,
 } from "@/lib/ivette-crm";
 import {
   BusinessConfig,
@@ -52,7 +53,9 @@ function mapSale(row: RawRow, plan?: RawRow): CapilarSale {
   const nombreCliente = readString(row, "cliente_nombre");
   const { nombre, apellido } = splitName(nombreCliente);
   const totalVenta = readNumber(row, "total");
-  const saldoPendiente = plan ? readNumber(plan, "saldo_pendiente") : 0;
+  const saldoPendiente = readString(row, "saldo_pendiente") !== ""
+    ? readNumber(row, "saldo_pendiente")
+    : (plan ? readNumber(plan, "saldo_pendiente") : 0);
   const totalAbonado = Math.max(totalVenta - saldoPendiente, 0);
   const fechaCuota1 = readString(plan, "fecha_cuota_1");
   const fechaCuota2 = readString(plan, "fecha_cuota_2");
@@ -90,7 +93,7 @@ function mapSale(row: RawRow, plan?: RawRow): CapilarSale {
     montoAbonado2: readString(plan, "estado_cuota_2") === "Pagada" ? readNumber(plan, "cuota_2") : 0,
     totalAbonado,
     montoRestante: saldoPendiente,
-    estadoCobro: plan ? readString(plan, "estado_plan") : "Sin plan",
+    estadoCobro: readString(row, "estado_pago") || (plan ? readString(plan, "estado_plan") : "Sin plan"),
     responsable: "Marcos / Ivette",
     fuenteArchivo: "google-sheets",
     fuenteHoja: "Pedidos",
@@ -232,6 +235,15 @@ const DEFAULT_CONFIG: BusinessConfig = {
 };
 
 export async function getCapilarData(): Promise<CapilarDashboardData> {
+  // Ensure headers are migrated first (non-destructively)
+  await Promise.all([
+    ensureSheetHeaders("Pedidos"),
+    ensureSheetHeaders("Pagos Quincenales"),
+    ensureSheetHeaders("Historial de Contacto"),
+  ]).catch((err) => {
+    console.error("Failed to ensure CRM headers:", err);
+  });
+
   const [pedidosTable, clientasTable, productosTable, pagosTable] =
     await Promise.all([
       listPedidos(),

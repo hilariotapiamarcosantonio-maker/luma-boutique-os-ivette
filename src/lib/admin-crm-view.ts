@@ -50,6 +50,12 @@ export interface AdminLead {
   observaciones?: string;
   clienteFiel?: string;
   estadoPlan?: string;
+  estadoPago?: string;
+  saldoPendiente?: number;
+  proximaFechaPago?: string;
+  fechaConfirmacion?: string;
+  fechaPagoCompleto?: string;
+  fechaEntrega?: string;
 }
 
 export interface AdminContact {
@@ -144,6 +150,12 @@ export async function getAdminLeads(): Promise<AdminLead[]> {
         observaciones: read(pedido, "notas"),
         clienteFiel: plan ? "true" : "false",
         estadoPlan: read(plan, "estado_plan"),
+        estadoPago: read(pedido, "estado_pago") || (plan ? (read(plan, "estado_plan") === "Completado" ? "Pagado" : (read(plan, "estado_plan") === "Cuota 2 pendiente" ? "Cuota 1 pagada" : "Pendiente")) : "Pendiente"),
+        saldoPendiente: read(pedido, "saldo_pendiente") !== "" ? readNumber(pedido, "saldo_pendiente") : (plan ? readNumber(plan, "saldo_pendiente") : 0),
+        proximaFechaPago: read(pedido, "proxima_fecha_pago") || (plan ? (read(plan, "estado_plan") === "Cuota 2 pendiente" ? read(plan, "fecha_cuota_2") : read(plan, "fecha_cuota_1")) : ""),
+        fechaConfirmacion: read(pedido, "fecha_confirmacion"),
+        fechaPagoCompleto: read(pedido, "fecha_pago_completo"),
+        fechaEntrega: read(pedido, "fecha_entrega"),
       };
     })
     .reverse();

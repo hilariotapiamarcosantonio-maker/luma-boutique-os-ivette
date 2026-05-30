@@ -65,11 +65,17 @@ export const CRM_HEADERS: Record<string, string[]> = {
     "metodo_pago",
     "modalidad_pago",
     "estado_pedido",
+    "estado_pago",
     "origen",
     "direccion",
     "zona",
     "referencia",
     "notas",
+    "fecha_confirmacion",
+    "fecha_pago_completo",
+    "fecha_entrega",
+    "saldo_pendiente",
+    "proxima_fecha_pago",
   ],
   [IVETTE_SHEETS.leads]: [
     "id",
@@ -106,9 +112,11 @@ export const CRM_HEADERS: Record<string, string[]> = {
     "cuota_1",
     "fecha_cuota_1",
     "estado_cuota_1",
+    "fecha_pago_cuota_1",
     "cuota_2",
     "fecha_cuota_2",
     "estado_cuota_2",
+    "fecha_pago_cuota_2",
     "saldo_pendiente",
     "estado_plan",
     "notas",
@@ -844,4 +852,241 @@ export async function updateQuincenalPayment(
   });
 
   return { updatedSaldo: saldoIndex !== -1 ? toMoney(row[saldoIndex]) : 0, estadoPlan: estadoPlanIndex !== -1 ? String(row[estadoPlanIndex]) : "" };
+}
+
+export function getColLetter(colIndex: number): string {
+  let letter = "";
+  let temp = colIndex;
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
+
+export async function ensureSheetHeaders(sheetName: string): Promise<string[]> {
+  try {
+    const { sheets, spreadsheetId } = await getSheetsClient();
+    if (!sheets || !spreadsheetId) {
+      return CRM_HEADERS[sheetName] || [];
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:ZZ1`,
+    });
+    
+    const currentHeaders = (response.data.values?.[0] || []).map(h => String(h).trim());
+    const expectedHeaders = CRM_HEADERS[sheetName] || [];
+
+    if (currentHeaders.length === 0) {
+      const range = `${sheetName}!A1:${getColLetter(expectedHeaders.length - 1)}1`;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [expectedHeaders] },
+      });
+      return expectedHeaders;
+    }
+
+    const normalizedCurrent = currentHeaders.map(h => normalizeKey(h));
+    const missingHeaders: string[] = [];
+    for (const expected of expectedHeaders) {
+      if (!normalizedCurrent.includes(normalizeKey(expected))) {
+        missingHeaders.push(expected);
+      }
+    }
+
+    if (missingHeaders.length > 0) {
+      const startColIndex = currentHeaders.length;
+      const endColIndex = startColIndex + missingHeaders.length - 1;
+      const range = `${sheetName}!${getColLetter(startColIndex)}1:${getColLetter(endColIndex)}1`;
+      
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [missingHeaders] },
+      });
+      
+      return [...currentHeaders, ...missingHeaders];
+    }
+
+    return currentHeaders;
+  } catch (error) {
+    console.error(`Error in ensureSheetHeaders for ${sheetName}:`, error);
+    return CRM_HEADERS[sheetName] || [];
+  }
+}
+
+export async function updatePedidoCrm(
+  pedidoId: string,
+  updates: Record<string, SheetPrimitive>
+) {
+  const { sheets, spreadsheetId } = await getSheetsClient();
+  if (!sheets || !spreadsheetId) {
+    console.warn("Using local fallback or missing client for updatePedidoCrm");
+    return { ok: false };
+  }
+
+  const headers = await ensureSheetHeaders(IVETTE_SHEETS.pedidos);
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${IVETTE_SHEETS.pedidos}!A:AZ`,
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+  
+  const values = (response.data.values || []) as (string | number | boolean)[][];
+  const normalizedHeaders = headers.map(h => normalizeKey(h));
+  
+  const idColIndex = normalizedHeaders.indexOf("id");
+  if (idColIndex === -1) {
+    throw new Error("Could not find 'id' column in Pedidos sheet headers");
+  }
+
+  const rowIndex = values.findIndex(
+    (row, idx) => idx > 0 && String(row[idColIndex] || "").trim() === pedidoId.trim()
+  );
+  
+  if (rowIndex === -1) {
+    throw new Error(`Pedido with ID ${pedidoId} not found`);
+  }
+
+  const existingRow = [...values[rowIndex]];
+  while (existingRow.length < headers.length) {
+    existingRow.push("");
+  }
+
+  for (const [key, val] of Object.entries(updates)) {
+    const normKey = normalizeKey(key);
+    const colIdx = normalizedHeaders.indexOf(normKey);
+    if (colIdx !== -1) {
+      existingRow[colIdx] = val;
+    }
+  }
+
+  const colLetterLimit = getColLetter(existingRow.length - 1);
+  const range = `${IVETTE_SHEETS.pedidos}!A${rowIndex + 1}:${colLetterLimit}${rowIndex + 1}`;
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [existingRow] },
+  });
+
+  return { ok: true, rowIndex, updatedRow: existingRow };
+}
+
+export async function upsertPagoQuincenalCrm(
+  pedidoId: string,
+  data: Record<string, SheetPrimitive>
+) {
+  const { sheets, spreadsheetId } = await getSheetsClient();
+  if (!sheets || !spreadsheetId) {
+    console.warn("Using local fallback or missing client for upsertPagoQuincenalCrm");
+    return { ok: false };
+  }
+
+  const headers = await ensureSheetHeaders(IVETTE_SHEETS.pagosQuincenales);
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${IVETTE_SHEETS.pagosQuincenales}!A:AZ`,
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+
+  const values = (response.data.values || []) as (string | number | boolean)[][];
+  const normalizedHeaders = headers.map(h => normalizeKey(h));
+
+  const pedidoIdColIndex = normalizedHeaders.indexOf("pedido_id");
+  if (pedidoIdColIndex === -1) {
+    throw new Error("Could not find 'pedido_id' column in Pagos Quincenales headers");
+  }
+
+  const rowIndex = values.findIndex(
+    (row, idx) => idx > 0 && String(row[pedidoIdColIndex] || "").trim() === pedidoId.trim()
+  );
+
+  let targetRow: (string | number | boolean)[] = [];
+  let isNew = false;
+  let writeRowIndex = rowIndex;
+
+  if (rowIndex === -1) {
+    isNew = true;
+    writeRowIndex = values.length;
+    
+    if (!data.id) {
+      data.id = `PQ-${Date.now()}`;
+    }
+    data.pedido_id = pedidoId;
+    
+    targetRow = Array(headers.length).fill("");
+  } else {
+    targetRow = [...values[rowIndex]];
+    while (targetRow.length < headers.length) {
+      targetRow.push("");
+    }
+  }
+
+  for (const [key, val] of Object.entries(data)) {
+    const normKey = normalizeKey(key);
+    const colIdx = normalizedHeaders.indexOf(normKey);
+    if (colIdx !== -1) {
+      targetRow[colIdx] = val;
+    }
+  }
+
+  const colLetterLimit = getColLetter(targetRow.length - 1);
+  const range = `${IVETTE_SHEETS.pagosQuincenales}!A${writeRowIndex + 1}:${colLetterLimit}${writeRowIndex + 1}`;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [targetRow] },
+  });
+
+  return { ok: true, isNew, rowIndex: writeRowIndex };
+}
+
+export async function logCrmInteraction(input: {
+  contactoId: string;
+  nombre: string;
+  telefono: string;
+  tipoInteraccion: string;
+  mensaje: string;
+  resultado: string;
+  proximaAccion?: string;
+  responsable?: string;
+  notas?: string;
+}) {
+  const formatPhoneLog = (phone: string) => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length > 6) {
+      return `${normalized.slice(0, 3)}***${normalized.slice(-3)}`;
+    }
+    return phone;
+  };
+
+  console.log(
+    `[Interaction Log] Contact: ${input.nombre}, Phone: ${formatPhoneLog(input.telefono)}, Action: ${input.tipoInteraccion}`
+  );
+
+  const interactionRow = {
+    id: `HIS-${Date.now()}`,
+    fecha: todayInLaPaz(),
+    contacto_id: input.contactoId || "",
+    nombre: input.nombre || "",
+    telefono: input.telefono || "",
+    tipo_interaccion: input.tipoInteraccion,
+    mensaje: input.mensaje,
+    resultado: input.resultado,
+    proxima_accion: input.proximaAccion || "",
+    responsable: input.responsable || "Sistema",
+    notas: input.notas || "",
+  };
+
+  return appendHistorialContacto(interactionRow);
 }

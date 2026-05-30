@@ -1,5 +1,16 @@
 import Link from "next/link";
-import { ClipboardList, Clock, MessageSquare, Sparkles, Users, ShieldAlert } from "lucide-react";
+import {
+  Clock,
+  MessageSquare,
+  Users,
+  ShieldAlert,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Wallet,
+  XCircle,
+  Truck,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FunnelChart } from "@/components/dashboard/FunnelChart";
@@ -19,8 +30,43 @@ export default async function PanelPage() {
     getAdminContacts(),
   ]);
 
-  const totalPedidos = leads.length;
-  const nuevosPedidos = leads.filter((lead) => lead.estado === "Nuevo").length;
+  // Calculate Sales & Payment KPIs
+  const totalVendido = leads
+    .filter((lead) => ["Confirmado", "Preparando", "Entregado"].includes(lead.estado))
+    .reduce((sum, lead) => sum + (lead.total || 0), 0);
+
+  const saldoPendienteTotal = leads
+    .filter((lead) => lead.estado !== "Cancelado")
+    .reduce((sum, lead) => sum + (lead.saldoPendiente || 0), 0);
+
+  const pagadosCount = leads.filter(
+    (lead) => lead.estadoPago === "Pagado" && lead.estado !== "Cancelado"
+  ).length;
+
+  const pendientesPagoCount = leads.filter(
+    (lead) => lead.estadoPago !== "Pagado" && lead.estado !== "Cancelado"
+  ).length;
+
+  const planesQuincenalesActivosCount = leads.filter(
+    (lead) =>
+      (lead.modalidadPago === "Plan Quincenal" ||
+        lead.modalidadPago === "Plan Quincenal Clienta Fiel") &&
+      lead.estadoPlan !== "Completado" &&
+      lead.estado !== "Cancelado"
+  ).length;
+
+  const cuotasAtrasadasCount = leads.filter(
+    (lead) =>
+      (lead.modalidadPago === "Plan Quincenal" ||
+        lead.modalidadPago === "Plan Quincenal Clienta Fiel") &&
+      (lead.estadoPlan === "Atrasado" || lead.estadoPago === "Atrasado") &&
+      lead.estado !== "Cancelado"
+  ).length;
+
+  const entregadosCount = leads.filter((lead) => lead.estado === "Entregado").length;
+  const canceladosCount = leads.filter((lead) => lead.estado === "Cancelado").length;
+
+  // Calculate Contacts KPIs
   const totalContactos = contacts.length;
   const lanzamiento500 = contacts.filter(
     (contact) => contact.cohortes === "lanzamiento_500"
@@ -33,15 +79,6 @@ export default async function PanelPage() {
       contact.contactableWhatsapp === false ||
       !contact.telefonoNormalizado ||
       contact.estadoImportacion === "Revisión"
-  ).length;
-  const planesQuincenalesActivos = leads.filter(
-    (lead) =>
-      (lead.modalidadPago === "Plan Quincenal" ||
-        lead.modalidadPago === "Plan Quincenal Clienta Fiel") &&
-      lead.estadoPlan !== "Completado"
-  ).length;
-  const pendientesWhatsapp = contacts.filter(
-    (contact) => contact.estadoContacto === "Seguimiento" || contact.proximaAccion
   ).length;
 
   return (
@@ -68,7 +105,7 @@ export default async function PanelPage() {
           by {brand.parentBrand} - Workspace {brand.workspaceName} -{" "}
           {data.source === "google-sheets" ? "Google Sheets" : "Fallback local"}
         </Badge>
-
+ 
         <Badge
           variant="outline"
           className="border-crm-teal/30 bg-crm-teal/10 text-crm-teal font-semibold"
@@ -77,134 +114,206 @@ export default async function PanelPage() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {/* Total Contactos */}
-        <Link href="/admin/contactos" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Total Contactos
-              </CardTitle>
-              <Users className="h-4 w-4 text-crm-cyan shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-text">{totalContactos}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Directorio de contactos</p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="space-y-3">
+        <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-crm-muted">KPIs de Ventas y Pagos (Sheets)</h3>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* Total Vendido */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Total Vendido
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-crm-green shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-green font-mono">{formatDop(totalVendido)}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Pedidos confirmados / activos</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* WhatsApp Válido */}
-        <Link href="/admin/contactos?filter=whatsapp_valido" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                WhatsApp Válido
-              </CardTitle>
-              <MessageSquare className="h-4 w-4 text-crm-green shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-green">{whatsappValido}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Teléfonos normalizados</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Saldo Pendiente */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Saldo Pendiente
+                </CardTitle>
+                <Wallet className="h-4 w-4 text-crm-amber shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-amber font-mono">{formatDop(saldoPendienteTotal)}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Cuentas por cobrar activas</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Revisión */}
-        <Link href="/admin/contactos?filter=revision" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Revisión
-              </CardTitle>
-              <ShieldAlert className="h-4 w-4 text-crm-gold shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-gold">{revision}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Contacto no disponible</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Pagados */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Pedidos Pagados
+                </CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-crm-teal shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-teal">{pagadosCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Cuentas saldadas</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Lanzamiento 500 */}
-        <Link href="/admin/contactos?filter=lanzamiento_500" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Lanzamiento 500
-              </CardTitle>
-              <Users className="h-4 w-4 text-purple-400 shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-400">{lanzamiento500}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Primera cohorte comercial</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Pendientes de pago */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Pendientes de Pago
+                </CardTitle>
+                <Clock className="h-4 w-4 text-crm-gold shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-gold">{pendientesPagoCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Pedidos con saldo activo</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Total Pedidos */}
-        <Link href="/admin/leads" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Total de Pedidos
-              </CardTitle>
-              <ClipboardList className="h-4 w-4 text-crm-blue shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-text">{totalPedidos}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Pedidos en Google Sheets</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Planes Quincenales Activos */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Planes Activos
+                </CardTitle>
+                <Clock className="h-4 w-4 text-indigo-400 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-indigo-400">{planesQuincenalesActivosCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Abonos quincenales en curso</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Nuevos Pedidos */}
-        <Link href="/admin/leads" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Nuevos Pedidos
-              </CardTitle>
-              <Sparkles className="h-4 w-4 text-crm-gold shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-gold">{nuevosPedidos}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Pendientes de gestión</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Cuotas Atrasadas */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Cuotas Atrasadas
+                </CardTitle>
+                <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-red-400">{cuotasAtrasadasCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Pagos fuera de fecha</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Planes Quincenales Activos */}
-        <Link href="/admin/leads" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Planes Quincenales Activos
-              </CardTitle>
-              <Clock className="h-4 w-4 text-crm-teal shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-teal">{planesQuincenalesActivos}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Cobros diferidos activos</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Entregados */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Pedidos Entregados
+                </CardTitle>
+                <Truck className="h-4 w-4 text-crm-cyan shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-cyan">{entregadosCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Despachados exitosamente</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Pendientes WhatsApp / Seguimiento */}
-        <Link href="/admin/contactos?filter=whatsapp_valido" className="block w-full min-w-0">
-          <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
-              <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
-                Pendientes WhatsApp
-              </CardTitle>
-              <MessageSquare className="h-4 w-4 text-crm-gold shrink-0" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-crm-gold">{pendientesWhatsapp}</div>
-              <p className="mt-1 text-[10px] text-crm-faint">Seguimientos pendientes</p>
-            </CardContent>
-          </Card>
-        </Link>
+          {/* Cancelados */}
+          <Link href="/admin/leads" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Pedidos Cancelados
+                </CardTitle>
+                <XCircle className="h-4 w-4 text-stone-400 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-stone-400">{canceladosCount}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Pedidos anulados</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-crm-muted">Directorio de Contactos (Clientes)</h3>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {/* Total Contactos */}
+          <Link href="/admin/contactos" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Total Contactos
+                </CardTitle>
+                <Users className="h-4 w-4 text-crm-cyan shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-text">{totalContactos}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Contactos en base de datos</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* WhatsApp Válido */}
+          <Link href="/admin/contactos?filter=whatsapp_valido" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  WhatsApp Válido
+                </CardTitle>
+                <MessageSquare className="h-4 w-4 text-crm-green shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-green">{whatsappValido}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Teléfonos normalizados</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Revisión */}
+          <Link href="/admin/contactos?filter=revision" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Revisión
+                </CardTitle>
+                <ShieldAlert className="h-4 w-4 text-crm-gold shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-crm-gold">{revision}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Contacto no disponible</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Lanzamiento 500 */}
+          <Link href="/admin/contactos?filter=lanzamiento_500" className="block w-full min-w-0">
+            <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 gap-2">
+                <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-crm-muted break-words whitespace-normal leading-normal">
+                  Lanzamiento 500
+                </CardTitle>
+                <Users className="h-4 w-4 text-purple-400 shrink-0" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl sm:text-2xl font-bold text-purple-400">{lanzamiento500}</div>
+                <p className="mt-1 text-[10px] text-crm-faint">Primera cohorte comercial</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
