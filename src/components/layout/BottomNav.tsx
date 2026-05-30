@@ -21,7 +21,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegación de roles"
-      className="fixed bottom-0 inset-x-0 z-40 flex h-16 items-stretch
+      className="fixed bottom-0 inset-x-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] items-stretch
                  border-t border-crm-line bg-crm-bg2/95 backdrop-blur-sm
                  lg:hidden"
     >

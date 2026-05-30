@@ -114,6 +114,7 @@ const normalizeFilter = (f?: string): string => {
   if (lower === "revision" || lower === "revisión") return "revision";
   if (lower === "whatsapp_valido" || lower === "whatsapp válido" || lower === "con_whatsapp") return "whatsapp_valido";
   if (lower === "lanzamiento_500" || lower === "lanzamiento 500" || lower === "lanzamiento") return "lanzamiento_500";
+  if (lower === "seguimiento") return "seguimiento";
   return "all";
 };
 
@@ -334,6 +335,8 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
       matchesCategory = contact.origen === "CSV ptigo";
     } else if (contactsFilter === "vcf_ivette") {
       matchesCategory = contact.origen === "VCF Ivette";
+    } else if (contactsFilter === "seguimiento") {
+      matchesCategory = contact.estadoContacto === "Seguimiento" || !!contact.proximaAccion;
     }
 
     return matchesSearch && matchesCategory;
@@ -345,6 +348,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
   const lanzamiento500Count = contacts.filter((c) => c.cohortes === "lanzamiento_500").length;
   const csvPtigoCount = contacts.filter((c) => c.origen === "CSV ptigo").length;
   const vcfIvetteCount = contacts.filter((c) => c.origen === "VCF Ivette").length;
+  const seguimientoCount = contacts.filter((c) => c.estadoContacto === "Seguimiento" || !!c.proximaAccion).length;
 
   const filterOptions = [
     { value: "all", label: "Todos", count: totalContactsCount },
@@ -353,6 +357,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
     { value: "lanzamiento_500", label: "Lanzamiento 500", count: lanzamiento500Count },
     { value: "csv_ptigo", label: "CSV ptigo", count: csvPtigoCount },
     { value: "vcf_ivette", label: "VCF Ivette", count: vcfIvetteCount },
+    { value: "seguimiento", label: "Seguimiento", count: seguimientoCount },
   ];
 
   const totalFilteredContacts = filteredContacts.length;
@@ -986,7 +991,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
             </div>
 
             {/* Main filter categories */}
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 gap-2 whitespace-nowrap scrollbar-none select-none">
               {filterOptions.map((opt) => (
                 <button
                   key={opt.value}
@@ -997,7 +1002,7 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                     const url = normalized === "all" ? "/admin/contactos" : `/admin/contactos?filter=${normalized}`;
                     window.history.pushState(null, "", url);
                   }}
-                  className={`px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                  className={`px-3.5 py-2 rounded-xl text-[11px] font-bold transition-all border shrink-0 ${
                     contactsFilter === opt.value
                       ? "bg-crm-gold/25 border-crm-gold text-crm-gold"
                       : "bg-crm-surface2 border-crm-line text-crm-muted hover:text-crm-text hover:bg-crm-surface3"
@@ -1311,35 +1316,62 @@ export function LeadsTable({ initialLeads, initialContacts, dataSource = "local-
                 </div>
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {totalFilteredContacts > 0 && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-crm-line bg-crm-surface2">
                     <div className="text-xs text-crm-muted">
-                      Mostrando <span className="font-semibold text-crm-text">{startIndex + 1}-{endIndex}</span> de{" "}
-                      <span className="font-semibold text-crm-text">{totalFilteredContacts}</span> contactos
-                      {contactsFilter !== "all" && ` (filtrados de ${totalContactsCount})`}
+                      {contactsSearchQuery ? (
+                        <>
+                          Resultados de búsqueda: <span className="font-semibold text-crm-text">{totalFilteredContacts}</span> de{" "}
+                          <span className="font-semibold text-crm-text">{totalContactsCount}</span> contactos
+                        </>
+                      ) : (
+                        <>
+                          Mostrando <span className="font-semibold text-crm-text">{startIndex + 1}-{endIndex}</span> de{" "}
+                          <span className="font-semibold text-crm-text">{totalFilteredContacts}</span> contactos
+                          {contactsFilter !== "all" && ` (filtrados de ${totalContactsCount})`}
+                        </>
+                      )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setContactsPage((p) => Math.max(1, p - 1))}
-                        disabled={contactsPage === 1}
-                        className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Anterior
-                      </button>
-                      
-                      <span className="text-xs text-crm-muted font-semibold px-2">
-                        Página {contactsPage} de {totalPages}
-                      </span>
-                      
-                      <button
-                        onClick={() => setContactsPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={contactsPage === totalPages}
-                        className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        Siguiente
-                      </button>
-                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setContactsPage(1)}
+                          disabled={contactsPage === 1}
+                          className="px-2.5 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Ir a la primera página"
+                        >
+                          «
+                        </button>
+                        <button
+                          onClick={() => setContactsPage((p) => Math.max(1, p - 1))}
+                          disabled={contactsPage === 1}
+                          className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Anterior
+                        </button>
+                        
+                        <span className="text-xs text-crm-muted font-semibold px-2">
+                          Página {contactsPage} de {totalPages || 1}
+                        </span>
+                        
+                        <button
+                          onClick={() => setContactsPage((p) => Math.min(totalPages, p + 1))}
+                          disabled={contactsPage === totalPages || totalPages === 0}
+                          className="px-3 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Siguiente
+                        </button>
+                        <button
+                          onClick={() => setContactsPage(totalPages)}
+                          disabled={contactsPage === totalPages || totalPages === 0}
+                          className="px-2.5 py-1.5 rounded-lg border border-crm-line bg-crm-surface text-crm-text text-xs font-bold transition-all hover:bg-crm-surface3 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Ir a la última página"
+                        >
+                          »
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

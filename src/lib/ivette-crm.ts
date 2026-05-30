@@ -454,7 +454,7 @@ export async function readCrmRows(sheetName: string) {
     try {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${sheetName}!A1:AZ1000`,
+        range: `${sheetName}!A:AZ`,
         valueRenderOption: "UNFORMATTED_VALUE",
       });
       return {
@@ -560,7 +560,7 @@ export async function updateContactoSeguimiento(input: {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${IVETTE_SHEETS.contactos}!A1:O`,
+    range: `${IVETTE_SHEETS.contactos}!A:AZ`,
     valueRenderOption: "UNFORMATTED_VALUE",
   });
   const values = (response.data.values || []) as (string | number | boolean)[][];
@@ -580,14 +580,14 @@ export async function updateContactoSeguimiento(input: {
 
   const row = [...values[targetRowIndex]];
   while (row.length < headers.length) row.push("");
-  row[indexes.estado_contacto] = input.estadoContacto;
-  row[indexes.ultima_interaccion] = input.ultimaInteraccion;
-  row[indexes.proxima_accion] = input.proximaAccion;
-  row[indexes.notas] = input.notas;
+  if (indexes.estado_contacto !== undefined) row[indexes.estado_contacto] = input.estadoContacto;
+  if (indexes.ultima_interaccion !== undefined) row[indexes.ultima_interaccion] = input.ultimaInteraccion;
+  if (indexes.proxima_accion !== undefined) row[indexes.proxima_accion] = input.proximaAccion;
+  if (indexes.notas !== undefined) row[indexes.notas] = input.notas;
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${IVETTE_SHEETS.contactos}!A${targetRowIndex + 1}:O${targetRowIndex + 1}`,
+    range: `${IVETTE_SHEETS.contactos}!A${targetRowIndex + 1}:AZ${targetRowIndex + 1}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [row] },
   });
@@ -796,7 +796,7 @@ export async function updateQuincenalPayment(
   const sheetName = IVETTE_SHEETS.pagosQuincenales;
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!A1:AZ1000`,
+    range: `${sheetName}!A:AZ`,
     valueRenderOption: "UNFORMATTED_VALUE",
   });
   const values = (response.data.values || []) as (string | number)[][];
@@ -814,17 +814,19 @@ export async function updateQuincenalPayment(
   const row = [...values[rowIndex]];
   while (row.length < headers.length) row.push("");
 
-  const currentSaldo = toMoney(row[saldoIndex]);
-  const newSaldo = Math.max(roundMoney(currentSaldo - amount), 0);
-  row[saldoIndex] = newSaldo;
+  if (saldoIndex !== -1) {
+    const currentSaldo = toMoney(row[saldoIndex]);
+    const newSaldo = Math.max(roundMoney(currentSaldo - amount), 0);
+    row[saldoIndex] = newSaldo;
 
-  if (newSaldo <= 0) {
-    row[estadoCuota1Index] = "Pagada";
-    row[estadoCuota2Index] = "Pagada";
-    row[estadoPlanIndex] = "Completado";
-  } else if (estadoCuota1Index !== -1 && row[estadoCuota1Index] !== "Pagada") {
-    row[estadoCuota1Index] = "Pagada";
-    row[estadoPlanIndex] = "Cuota 2 pendiente";
+    if (newSaldo <= 0) {
+      if (estadoCuota1Index !== -1) row[estadoCuota1Index] = "Pagada";
+      if (estadoCuota2Index !== -1) row[estadoCuota2Index] = "Pagada";
+      if (estadoPlanIndex !== -1) row[estadoPlanIndex] = "Completado";
+    } else if (estadoCuota1Index !== -1 && row[estadoCuota1Index] !== "Pagada") {
+      row[estadoCuota1Index] = "Pagada";
+      if (estadoPlanIndex !== -1) row[estadoPlanIndex] = "Cuota 2 pendiente";
+    }
   }
 
   if (notasIndex !== -1) {
@@ -841,5 +843,5 @@ export async function updateQuincenalPayment(
     requestBody: { values: [row] },
   });
 
-  return { updatedSaldo: newSaldo, estadoPlan: row[estadoPlanIndex] };
+  return { updatedSaldo: saldoIndex !== -1 ? toMoney(row[saldoIndex]) : 0, estadoPlan: estadoPlanIndex !== -1 ? String(row[estadoPlanIndex]) : "" };
 }

@@ -79,7 +79,7 @@ export function StoreFooter() {
           {/* Logo & Tagline */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-3.5">
-              <img src="/logo.png" alt="Ivette Berroa Logo" className="h-16 w-16 md:h-20 md:w-20 object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1 shadow-md hover:scale-105 transition-transform duration-300" />
+              <img src="/logo.png" alt="Ivette Berroa Logo" className="h-20 w-20 md:h-24 md:w-24 object-contain bg-transparent border-2 border-[#c5a059] rounded-full p-[2px] shadow-md hover:scale-105 transition-transform duration-300" />
               <div className="flex flex-col">
                 <span className="text-sm md:text-base font-bold uppercase tracking-[0.24em] text-[#faf8f5] leading-none">
                   IVETTE <span className="text-[#c5a059]">BERROA</span>

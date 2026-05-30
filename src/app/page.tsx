@@ -28,7 +28,7 @@ export default function StoreFrontHome() {
             {/* Text */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               <div className="flex justify-center lg:justify-start mb-2">
-                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-24 w-24 md:h-32 md:w-32 object-contain bg-[#2a3b26] border-2 border-[#c5a059] rounded-full p-1.5 shadow-lg transform hover:scale-105 transition-transform duration-300" />
+                <img src="/logo.png" alt="Ivette Berroa Logo" className="h-28 w-28 md:h-36 md:w-36 object-contain bg-transparent border-2 border-[#c5a059] rounded-full p-[2px] shadow-lg transform hover:scale-105 transition-transform duration-300" />
               </div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-[#1e2d1a]/80 border border-[#c5a059]/20 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#c5a059]">
                 <Sparkles className="h-3.5 w-3.5 text-[#c5a059]" />

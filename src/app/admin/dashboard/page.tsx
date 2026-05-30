@@ -77,7 +77,7 @@ export default async function PanelPage() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {/* Total Contactos */}
         <Link href="/admin/contactos" className="block w-full min-w-0">
           <Card className="border-crm-line bg-crm-surface transition-colors hover:border-crm-gold/50 h-full">
